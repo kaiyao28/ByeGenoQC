@@ -238,11 +238,11 @@ if batch_rows_data:
         for r in batch_rows_data
     )
     batch_html = (
-        "<h2>Per-batch QC Summary</h2>\n"
-        "<table>\n"
-        "<tr><th>Batch</th><th>Samples</th><th>Removed</th><th>Pass</th><th>Pass %</th></tr>\n"
+        "<h2>Per-batch QC Summary</h2>"
+        "<table>"
+        "<tr><th>Batch</th><th>Samples</th><th>Removed</th><th>Pass</th><th>Pass %</th></tr>"
         + brows
-        + "\n</table>"
+        + "</table>"
     )
 
 # ── Per-sample HTML table ─────────────────────────────────────────────────────
@@ -261,17 +261,17 @@ if sample_rows_data:
         for r in sample_rows_data
     )
     per_sample_html = (
-        "<h2>Per-sample QC Table</h2>\n"
+        "<h2>Per-sample QC Table</h2>"
         "<p>Full table available as <code>qc_per_sample.tsv</code>."
-        " Flags in red indicate QC failure at that step.</p>\n"
-        '<div class="scroll-table">\n'
-        "<table>\n"
-        "<tr><th>FID</th><th>IID</th><th>F_MISS</th><th>HET_RATE</th><th>X_F_STAT</th>\n"
-        "<th>PEDSEX</th><th>SNPSEX</th><th>SEX_STATUS</th>\n"
+        " Flags in red indicate QC failure at that step.</p>"
+        '<div class="scroll-table">'
+        "<table>"
+        "<tr><th>FID</th><th>IID</th><th>F_MISS</th><th>HET_RATE</th><th>X_F_STAT</th>"
+        "<th>PEDSEX</th><th>SNPSEX</th><th>SEX_STATUS</th>"
         "<th>SMISS</th><th>HET_OUT</th><th>SEX_DISC</th><th>RELATED</th>"
-        "<th>ANC_OUT</th><th>QC_FAIL</th><th>BATCH</th></tr>\n"
+        "<th>ANC_OUT</th><th>QC_FAIL</th><th>BATCH</th></tr>"
         + srows
-        + "\n</table>\n</div>"
+        + "</table></div>"
     )
 
 # ── Collect and base64-encode all QC plots ────────────────────────────────
@@ -322,7 +322,7 @@ if "${qc_scope}" == "provisional":
 attrition_body = "".join(summary_rows) if summary_rows else '<tr><td colspan="4">No summary files were produced.</td></tr>'
 threshold_body = "".join(threshold_rows)
 
-html_doc = "\n".join([
+html_doc = "\\n".join([
     "<!DOCTYPE html>",
     '<html lang="en">',
     "<head>",
