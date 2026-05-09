@@ -9,43 +9,42 @@ If the test data files are missing or you want to reset them:
 
 ```bash
 python3 test_data/generate_test_data.py
-rm -f test_data/snp_array/toy.bed test_data/snp_array/toy.bim test_data/snp_array/toy.fam
 ```
 
 ## Running Smoke Tests
 
-Run both tests (default):
-
 ```bash
-bash test_data/run_smoke_tests.sh --profile manual_paths
+# Run all three tests (default)
+bash test_data/run_smoke_tests.sh
+
+# Run one test at a time
+bash test_data/run_smoke_tests.sh --test snp_array   # SNP array: variant QC only
+bash test_data/run_smoke_tests.sh --test snp_full    # SNP array: variant + sample QC
+bash test_data/run_smoke_tests.sh --test wgs_wes     # WGS/WES VCF variant QC
+
+# Profiles
 bash test_data/run_smoke_tests.sh --profile docker
-bash test_data/run_smoke_tests.sh --profile slurm,singularity
-```
-
-Run only one test at a time:
-
-```bash
-bash test_data/run_smoke_tests.sh --profile manual_paths --test snp_array
-bash test_data/run_smoke_tests.sh --profile manual_paths --test wgs_wes
+bash test_data/run_smoke_tests.sh --profile singularity
+bash test_data/run_smoke_tests.sh --profile manual_paths
 ```
 
 ## What Each Test Exercises
 
-### SNP Array (`--test snp_array`)
+### SNP Array variant-only (`--test snp_array`)
 
-Input: `test_data/snp_array/toy.ped` and `toy.map`
+Input: `test_data/snp_array/toy.bed/.bim/.fam` (PLINK binary format)
 
 ```text
-10 samples (5 male, 5 female, 6 cases, 4 controls)
-50 variants on chr22
-
-Variants 1–40  : normal genotypes, MAF 0.10–0.40, no missingness
-Variants 41–45 : ~35% missing genotypes → fail variant callrate filter (>2%)
-Variants 46–48 : monomorphic (MAF=0) → fail MAF filter (<0.01)
-Variants 49–50 : all samples heterozygous → exercises HWE step
+15 samples  (S01–S15):  7 male / 8 female,  8 cases / 7 controls
+235 variants:
+  v001–200   chr22   normal genotypes (MAF 0.10–0.40, HWE-compliant)
+  v201–210   chr22   ~35% missing calls → fail variant callrate filter (>2%)
+  v211–213   chr22   monomorphic (MAF=0) → fail MAF filter (<0.01)
+  v214–215   chr22   all-heterozygous   → fail HWE filter
+  v216–235   chr23 (X)                 → enables PLINK sex check
 ```
 
-Run command used in the smoke test:
+Run command:
 
 ```bash
 nextflow run snp_array_qc/main.nf \
@@ -54,27 +53,58 @@ nextflow run snp_array_qc/main.nf \
   --run_sample_qc false \
   --run_final_report true \
   --outdir results/test_snp_variant_only \
-  -profile manual_paths
+  -profile docker
 ```
+
+---
+
+### SNP Array full QC (`--test snp_full`)
+
+Same input as above, with all sample-level modules enabled. Each module has a
+designed trigger in the toy data:
+
+```text
+S01  ~25% of autosomal calls missing     → fails sample callrate filter (>2%)
+S02  identical genotypes to S03          → relatedness filter (PI_HAT ≈ 1.0)
+S03  identical genotypes to S02          → relatedness filter (PI_HAT ≈ 1.0)
+S07  70% of autosomal calls heterozygous → heterozygosity outlier
+S09  PEDSEX=female, all chrX hom calls   → sex check discordant
+```
+
+Run command (`--n_pcs 5` avoids PLINK PCA warnings with 15 samples):
+
+```bash
+nextflow run snp_array_qc/main.nf \
+  --bfile test_data/snp_array/toy \
+  --run_variant_qc true \
+  --run_sample_qc true \
+  --run_final_report true \
+  --n_pcs 5 \
+  --n_pcs_covariates 5 \
+  --outdir results/test_snp_full \
+  -profile docker
+```
+
+---
 
 ### WGS/WES (`--test wgs_wes`)
 
-Input: `test_data/wgs_wes/toy_chr22.vcf` (VCF mode, variant QC only, no filtering)
+Input: `test_data/wgs_wes/toy_chr22.vcf` (VCF mode, variant QC only)
 
 ```text
-5 samples (SAMPLE1–5)
+5 samples  (SAMPLE1–5)
 20 variants on chr22:
-  18 SNPs: 13 transitions + 5 transversions → Ti/Tv ≈ 2.6
-  2 indels (1 deletion, 1 insertion)
-  rs013 (pos 325): FAIL — QD < 2.0 (low quality by depth)
-  rs015 (pos 375): FAIL — FS > 60.0 (strand bias)
-  rs018 (pos 450): PASS site, but 2 samples have GQ < 20 (genotype filter demo)
+  18 SNPs:  13 transitions + 5 transversions → Ti/Tv ≈ 2.6
+  2 indels  (1 deletion, 1 insertion)
+  rs013 (pos 325): FAIL site filter — QD < 2.0
+  rs015 (pos 375): FAIL site filter — FS > 60.0
+  rs013 + rs018:   low DP/GQ genotype-level filter demo
 ```
 
-Reference: `test_data/reference/mini.fa` — 500bp deterministic chr22 (ATCGATCG repeating).
-REF alleles in the VCF are verified to match this reference at each position.
+Reference: `test_data/reference/mini.fa` — 500 bp deterministic chr22 (ATCGATCG repeating).
+REF alleles in the VCF are verified against this reference at each position.
 
-Run command used in the smoke test:
+Run command:
 
 ```bash
 nextflow run wgs_wes_qc/main.nf \
@@ -88,5 +118,5 @@ nextflow run wgs_wes_qc/main.nf \
   --run_sample_qc false \
   --run_final_report true \
   --outdir results/test_vcf_variant_only \
-  -profile manual_paths
+  -profile docker
 ```

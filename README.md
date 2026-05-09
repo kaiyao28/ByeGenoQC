@@ -19,13 +19,12 @@ At the end you get a PDF report with the full attrition table, all metrics, and 
 
 ## Pipeline Overview
 
-<!-- DAG diagrams generated with: nextflow run <workflow> -with-dag assets/<name>_dag.html -preview -->
-<!-- Open the HTML files in a browser to view the interactive pipeline graph -->
+<!-- DAG diagrams generated with: nextflow run <workflow> -with-dag assets/<name>_dag.png -preview -->
 
 | Workflow | DAG |
 |----------|-----|
-| SNP Array QC | [snp_array_dag.html](assets/snp_array_dag.png) |
-| WGS / WES QC | [wgs_dag.html](assets/wgs_dag.png) |
+| SNP Array QC | [snp_array_dag.png](assets/snp_array_dag.png) |
+| WGS / WES QC | [wgs_dag.png](assets/wgs_dag.png) |
 
 To regenerate the diagrams:
 
