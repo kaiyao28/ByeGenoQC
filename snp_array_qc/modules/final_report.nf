@@ -399,7 +399,7 @@ PYEOF
     # Falls back gracefully if png package is absent.
     if command -v Rscript &>/dev/null; then
         Rscript - << 'RSCRIPT'
-pngs <- sort(list.files(".", pattern="\\.png$", full.names=TRUE))
+pngs <- sort(list.files(".", pattern="\\.png\$", full.names=TRUE))
 
 plot_order <- c("miss_het_scatter","heterozygosity_plot","sex_check_F_stat",
                 "vmiss_plot","cc_miss_plot","maf_plot","hwe_plot","imputation_r2_plot",
