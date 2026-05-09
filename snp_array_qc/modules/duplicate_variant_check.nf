@@ -29,8 +29,8 @@
 
 process DUPLICATE_VARIANT_CHECK {
     label 'process_medium'
-    publishDir "${params.outdir}/qc_tables", mode: params.publish_dir_mode, pattern: "*.txt"
-    publishDir "${params.outdir}/cleaned_data", mode: params.publish_dir_mode, pattern: "*.{bed,bim,fam}", enabled: params.keep_intermediate
+    publishDir "${params.outdir}/02_variant_cleanup/tables",       mode: params.publish_dir_mode, pattern: "*.txt"
+    publishDir "${params.outdir}/02_variant_cleanup/cleaned_data", mode: params.publish_dir_mode, pattern: "*.{bed,bim,fam}", enabled: params.keep_intermediate
 
     input:
     tuple val(meta), path(bed), path(bim), path(fam)

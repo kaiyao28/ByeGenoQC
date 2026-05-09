@@ -19,7 +19,7 @@
 
 process INPUT_CHECK {
     label 'process_low'
-    publishDir "${params.outdir}/logs", mode: params.publish_dir_mode
+    publishDir "${params.outdir}/01_input", mode: params.publish_dir_mode
 
     input:
     tuple val(meta), path(bed), path(bim), path(fam)

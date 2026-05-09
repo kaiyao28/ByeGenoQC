@@ -10,7 +10,7 @@
 
 process MERGE_CHROMOSOMES {
     label 'process_high'
-    publishDir "${params.outdir}/cleaned_data", mode: params.publish_dir_mode
+    publishDir "${params.outdir}/05_cleaned_data", mode: params.publish_dir_mode
 
     input:
     path plink_files

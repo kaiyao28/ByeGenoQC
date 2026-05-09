@@ -297,7 +297,7 @@ workflow {
         ch_all_excluded_samples = ch_sample_exclusions.collectFile(
             name:     'all_excluded_samples.txt',
             newLine:  true,
-            storeDir: "${params.outdir}/exclusion_lists"
+            storeDir: "${params.outdir}/05_cleaned_data/exclusion_lists"
         )
         APPLY_SAMPLE_EXCLUSIONS(ch_working.combine(ch_all_excluded_samples))
         ch_cleaned = APPLY_SAMPLE_EXCLUSIONS.out.plink
@@ -312,7 +312,7 @@ workflow {
         ch_all_excluded_samples = Channel.of('').collectFile(
             name: 'all_excluded_samples.txt',
             newLine: false,
-            storeDir: "${params.outdir}/exclusion_lists"
+            storeDir: "${params.outdir}/05_cleaned_data/exclusion_lists"
         )
     }
 
@@ -370,7 +370,7 @@ workflow {
     ch_all_excluded_variants = ch_variant_exclusions.collectFile(
         name:     'all_excluded_variants.txt',
         newLine:  true,
-        storeDir: "${params.outdir}/exclusion_lists"
+        storeDir: "${params.outdir}/05_cleaned_data/exclusion_lists"
     )
 
     // ════════════════════════════════════════════════════════════════════════
@@ -400,11 +400,11 @@ workflow.onComplete {
     ================================================================
     SNP Array QC ${status}
     ================================================================
-    Cleaned data     : ${outdir}/cleaned_data/
-    Final report     : ${outdir}/qc_report.pdf
-    PCA covariates   : ${outdir}/pca_covariates.txt
-    Excluded samples : ${outdir}/exclusion_lists/all_excluded_samples.txt
-    Excluded variants: ${outdir}/exclusion_lists/all_excluded_variants.txt
+    Cleaned data     : ${outdir}/05_cleaned_data/
+    Final report     : ${outdir}/06_report/qc_report.pdf
+    PCA covariates   : ${outdir}/05_cleaned_data/pca_covariates.txt
+    Excluded samples : ${outdir}/05_cleaned_data/exclusion_lists/all_excluded_samples.txt
+    Excluded variants: ${outdir}/05_cleaned_data/exclusion_lists/all_excluded_variants.txt
     ----------------------------------------------------------------
     Next steps:
       1. Open qc_report.pdf — review attrition table and plots
@@ -421,7 +421,7 @@ workflow.onComplete {
 // ── Inline helper process: apply accumulated sample exclusions ────────────────
 process APPLY_SAMPLE_EXCLUSIONS {
     label 'process_medium'
-    publishDir "${params.outdir}/cleaned_data", mode: params.publish_dir_mode
+    publishDir "${params.outdir}/05_cleaned_data", mode: params.publish_dir_mode
 
     input:
     tuple val(meta), path(bed), path(bim), path(fam), path(exclusion_list)

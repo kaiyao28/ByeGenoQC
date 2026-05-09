@@ -34,9 +34,9 @@
 
 process MAF_FILTER {
     label 'process_medium'
-    publishDir "${params.outdir}/cleaned_data", mode: params.publish_dir_mode, pattern: "*.{bed,bim,fam}"
-    publishDir "${params.outdir}/qc_tables",    mode: params.publish_dir_mode, pattern: "*.txt"
-    publishDir "${params.outdir}/qc_plots",    mode: params.publish_dir_mode, pattern: "*.png"
+    publishDir "${params.outdir}/05_cleaned_data",      mode: params.publish_dir_mode, pattern: "*.{bed,bim,fam}"
+    publishDir "${params.outdir}/04_variant_qc/tables", mode: params.publish_dir_mode, pattern: "*.txt"
+    publishDir "${params.outdir}/04_variant_qc/plots",  mode: params.publish_dir_mode, pattern: "*.png"
 
     input:
     tuple val(meta), path(bed), path(bim), path(fam)

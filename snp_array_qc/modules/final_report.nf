@@ -31,7 +31,7 @@
 
 process FINAL_REPORT {
     label 'process_report'
-    publishDir "${params.outdir}", mode: params.publish_dir_mode
+    publishDir "${params.outdir}/06_report", mode: params.publish_dir_mode
 
     input:
     tuple val(meta), path(bed), path(bim), path(fam)

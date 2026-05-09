@@ -308,7 +308,7 @@ if (!is.null(ps_df) && nrow(ps_df) > 0) {
 
 # QC Plots
 
-```{r plots, results='asis', fig.cap=""}
+```{r plots, results='asis'}
 plot_order <- c("miss_het_scatter","heterozygosity_plot","sex_check_F_stat",
                 "vmiss_plot","cc_miss_plot","maf_plot","hwe_plot",
                 "imputation_r2_plot","relatedness_pi_hat","pca_scree","pca_plot")
@@ -322,11 +322,21 @@ sort_key <- function(f) {
 pngs <- list.files(".", pattern = "\\.png$", full.names = FALSE)
 pngs <- pngs[order(sapply(pngs, sort_key))]
 
-for (f in pngs) {
+for (i in seq_along(pngs)) {
+  f     <- pngs[i]
   label <- tools::toTitleCase(gsub("_", " ", sub("\\.png$", "", basename(f))))
   cat(sprintf("\n## %s\n\n", label))
-  # knitr::include_graphics needs the path relative to the Rmd location
-  print(knitr::include_graphics(f))
+  # knit_child spawns a proper figure chunk for each PNG so knitr wraps it in
+  # a LaTeX figure environment with caption — plain print(include_graphics())
+  # inside results='asis' bypasses that and produces no figure environment.
+  cat(knitr::knit_child(
+    text  = sprintf(
+      '```{r plot-%d, echo=FALSE, fig.cap="%s", out.width="90%%"}\nknitr::include_graphics("%s")\n```',
+      i, label, f
+    ),
+    quiet = TRUE,
+    envir = environment()
+  ))
   cat("\n\n")
 }
 

@@ -31,8 +31,8 @@
 
 process SAMPLE_CALLRATE {
     label 'process_medium'
-    publishDir "${params.outdir}/qc_tables",   mode: params.publish_dir_mode, pattern: "*.{imiss,txt}"
-    publishDir "${params.outdir}/cleaned_data", mode: params.publish_dir_mode, pattern: "*.{bed,bim,fam}", enabled: params.keep_intermediate
+    publishDir "${params.outdir}/03_sample_qc/tables",       mode: params.publish_dir_mode, pattern: "*.{imiss,txt}"
+    publishDir "${params.outdir}/03_sample_qc/cleaned_data", mode: params.publish_dir_mode, pattern: "*.{bed,bim,fam}", enabled: params.keep_intermediate
 
     input:
     tuple val(meta), path(bed), path(bim), path(fam)

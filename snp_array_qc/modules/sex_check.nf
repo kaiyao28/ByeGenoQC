@@ -33,8 +33,8 @@
 
 process SEX_CHECK {
     label 'process_medium'
-    publishDir "${params.outdir}/qc_tables", mode: params.publish_dir_mode, pattern: "*.{sexcheck,txt}"
-    publishDir "${params.outdir}/qc_plots",  mode: params.publish_dir_mode, pattern: "*.png"
+    publishDir "${params.outdir}/03_sample_qc/tables", mode: params.publish_dir_mode, pattern: "*.{sexcheck,txt}"
+    publishDir "${params.outdir}/03_sample_qc/plots",  mode: params.publish_dir_mode, pattern: "*.png"
 
     input:
     tuple val(meta), path(bed), path(bim), path(fam)

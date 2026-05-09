@@ -45,9 +45,9 @@
 
 process ANCESTRY_PCA {
     label 'process_high'
-    publishDir "${params.outdir}/qc_tables", mode: params.publish_dir_mode, pattern: "*.{eigenvec,eigenval,txt}"
-    publishDir "${params.outdir}/qc_plots",  mode: params.publish_dir_mode, pattern: "*.png"
-    publishDir "${params.outdir}",           mode: params.publish_dir_mode, pattern: "pca_covariates.txt"
+    publishDir "${params.outdir}/03_sample_qc/tables",  mode: params.publish_dir_mode, pattern: "*.{eigenvec,eigenval,txt}"
+    publishDir "${params.outdir}/03_sample_qc/plots",   mode: params.publish_dir_mode, pattern: "*.png"
+    publishDir "${params.outdir}/05_cleaned_data",       mode: params.publish_dir_mode, pattern: "pca_covariates.txt"
 
     input:
     tuple val(meta), path(bed), path(bim), path(fam)
