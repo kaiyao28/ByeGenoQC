@@ -5,9 +5,21 @@
 ================================================================================
   Workflow phases:
     01  Input validation
-    02  Variant-level QC   (duplicate check, callrate, HWE, MAF)
-    03  Sample-level QC    (missingness, sex, het, relatedness, PCA)
+    02  Initial variant clean-up  (imputation filter, duplicate check)
+    03  Sample-level QC           (missingness, sex, het, relatedness, PCA)
+    03b Variant-level QC          (callrate, MAF, HWE — on clean sample set)
     04  Final report
+
+  Order rationale (Anderson et al. 2010 Nat Protoc best practice):
+    - Imputation filter and duplicate check are sample-independent; they run
+      first to avoid carrying junk variants through expensive sample QC steps.
+    - All sample QC metrics (sex, missingness, het, relatedness, PCA) are
+      assessed on the same dataset and all exclusions applied in one pass.
+    - Variant QC (callrate, MAF, HWE) then runs on the final, unrelated,
+      ancestry-homogeneous sample set. This ensures:
+        * MAF reflects the true study population allele frequencies
+        * Variant missingness is not biased by samples that failed QC
+        * HWE is not inflated by related or admixed individuals
 
   Variant-level QC can run per-chromosome for large datasets; sample-level QC
   always requires genome-wide data. Use --sample_qc_scope to control behaviour
@@ -117,12 +129,9 @@ workflow {
       Sample-level QC     : ${params.run_sample_qc}
       Sample QC scope     : ${scope}${scope == 'provisional' ? '  *** PROVISIONAL — not all autosomes ***' : ''}
     ----------------------------------------------------------------
-    Variant-level QC modules (Phase 2)
+    Initial variant clean-up (Phase 2)
       Imputation filter   : ${params.run_imputation_filter}${params.run_imputation_filter ? "  (R2 >= ${params.imputation_r2}, file: ${params.info_file ?: 'none'})" : ''}
       Duplicate check     : ${params.run_duplicate_check}
-      Variant missingness : ${params.run_variant_missingness}
-      HWE filter          : ${params.run_hwe}
-      MAF filter          : ${params.run_maf_filter}
     ----------------------------------------------------------------
     Sample-level QC modules (Phase 3)
       Sample missingness  : ${params.run_sample_missingness}
@@ -130,6 +139,11 @@ workflow {
       Heterozygosity      : ${params.run_heterozygosity}
       Relatedness         : ${params.run_relatedness}
       Ancestry PCA        : ${params.run_ancestry_pca}
+    ----------------------------------------------------------------
+    Variant-level QC on clean samples (Phase 3b)
+      Variant missingness : ${params.run_variant_missingness}
+      MAF filter          : ${params.run_maf_filter}
+      HWE filter          : ${params.run_hwe}
     ----------------------------------------------------------------
     Thresholds
       Sample missingness  : ${params.sample_missingness}
@@ -158,7 +172,7 @@ workflow {
     ch_hapmap_info = params.hapmap_info     ? Channel.value(file(params.hapmap_info))      : Channel.value([])
     ch_info_file   = params.info_file       ? Channel.value(file(params.info_file))        : Channel.value([])
 
-    ch_variant_exclusions = Channel.empty()
+    ch_variant_exclusions = Channel.of('')   // sentinel so collectFile always emits
     ch_sample_exclusions  = Channel.empty()
     ch_qc_summaries       = Channel.empty()
     ch_qc_plots           = Channel.empty()
@@ -172,18 +186,14 @@ workflow {
     ch_qc_summaries = ch_qc_summaries.mix(INPUT_CHECK.out.summary)
 
     // ════════════════════════════════════════════════════════════════════════
-    //  PHASE 2 — Variant-level QC
+    //  PHASE 2 — Initial variant clean-up (sample-independent)
     //
-    //  Filters on variants/sites/genotypes. For SNP arrays the dataset is
-    //  typically small enough to process genome-wide; the --chroms param
-    //  and MERGE_CHROMOSOMES are provided for large multi-chip cohorts that
-    //  benefit from chromosome-parallel execution.
+    //  Only filters that do not depend on the sample composition run here:
+    //    - Imputation filter: R²/INFO score is a per-variant quality metric
+    //    - Duplicate check: remove multi-mapped or duplicate variant IDs
     //
-    //  Order: imputation filter → duplicates → callrate → HWE → MAF
-    //  Imputation filter runs first to remove poorly imputed variants before
-    //  any other QC metrics are computed. Disabled by default.
-    //  HWE is placed before MAF so rare-variant HWE inflation doesn't bias
-    //  the MAF cutoff; both run on the callrate-cleaned dataset.
+    //  Variant callrate, MAF, and HWE run in Phase 3b AFTER sample QC so
+    //  they are computed on the final, unrelated, ancestry-homogeneous set.
     // ════════════════════════════════════════════════════════════════════════
     if (params.run_variant_qc) {
 
@@ -206,50 +216,8 @@ workflow {
             log.warn "SKIPPING: Duplicate variant check (run_duplicate_check = false)"
         }
 
-        if (params.run_variant_missingness) {
-            VARIANT_CALLRATE(ch_working)
-            ch_working            = VARIANT_CALLRATE.out.plink
-            ch_variant_exclusions = ch_variant_exclusions.mix(VARIANT_CALLRATE.out.removed_variants)
-            ch_qc_summaries       = ch_qc_summaries.mix(VARIANT_CALLRATE.out.summary)
-            ch_qc_summaries       = ch_qc_summaries.mix(VARIANT_CALLRATE.out.cc_miss_summary)
-            ch_qc_plots           = ch_qc_plots.mix(VARIANT_CALLRATE.out.plots)
-        } else {
-            log.warn "SKIPPING: Variant missingness (run_variant_missingness = false)"
-        }
-
-        if (params.run_hwe) {
-            HWE_FILTER(ch_working, ch_pheno)
-            ch_working            = HWE_FILTER.out.plink
-            ch_variant_exclusions = ch_variant_exclusions.mix(HWE_FILTER.out.removed_variants)
-            ch_qc_summaries       = ch_qc_summaries.mix(HWE_FILTER.out.summary)
-            ch_qc_plots           = ch_qc_plots.mix(HWE_FILTER.out.plots)
-        } else {
-            log.warn "SKIPPING: HWE filter (run_hwe = false)"
-        }
-
-        if (params.run_maf_filter) {
-            MAF_FILTER(ch_working)
-            ch_working            = MAF_FILTER.out.plink
-            ch_variant_exclusions = ch_variant_exclusions.mix(MAF_FILTER.out.removed_variants)
-            ch_qc_summaries       = ch_qc_summaries.mix(MAF_FILTER.out.summary)
-            ch_qc_plots           = ch_qc_plots.mix(MAF_FILTER.out.plots)
-        } else {
-            log.warn "SKIPPING: MAF filter (run_maf_filter = false)"
-        }
-
-        ch_all_excluded_variants = ch_variant_exclusions.collectFile(
-            name:     'all_excluded_variants.txt',
-            newLine:  true,
-            storeDir: "${params.outdir}/exclusion_lists"
-        )
-
     } else {
-        log.warn "SKIPPING: Entire variant-level QC phase (run_variant_qc = false)"
-        ch_all_excluded_variants = Channel.of('').collectFile(
-            name: 'all_excluded_variants.txt',
-            newLine: false,
-            storeDir: "${params.outdir}/exclusion_lists"
-        )
+        log.warn "SKIPPING: All variant-level QC (run_variant_qc = false)"
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -332,7 +300,7 @@ workflow {
             storeDir: "${params.outdir}/exclusion_lists"
         )
         APPLY_SAMPLE_EXCLUSIONS(ch_working.combine(ch_all_excluded_samples))
-        ch_final = APPLY_SAMPLE_EXCLUSIONS.out.plink
+        ch_cleaned = APPLY_SAMPLE_EXCLUSIONS.out.plink
 
     } else {
         if (scope == "skip") {
@@ -340,13 +308,70 @@ workflow {
         } else {
             log.warn "SKIPPING: All sample-level QC (run_sample_qc = false)"
         }
-        ch_final                = ch_working
+        ch_cleaned              = ch_working
         ch_all_excluded_samples = Channel.of('').collectFile(
             name: 'all_excluded_samples.txt',
             newLine: false,
             storeDir: "${params.outdir}/exclusion_lists"
         )
     }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  PHASE 3b — Variant-level QC on the sample-cleaned dataset
+    //
+    //  Order: callrate → MAF → HWE
+    //    callrate first: removes variants with high missingness in the clean
+    //      sample set, which may differ from pre-sample-QC missingness.
+    //    MAF before HWE: removing rare variants first reduces the number of
+    //      tests and avoids HWE instability in very rare variant categories.
+    //    HWE last: run on the final, unrelated, homogeneous sample set.
+    //      Controls-only if case-control phenotype coding detected in FAM.
+    // ════════════════════════════════════════════════════════════════════════
+    if (params.run_variant_qc) {
+
+        if (params.run_variant_missingness) {
+            VARIANT_CALLRATE(ch_cleaned)
+            ch_cleaned            = VARIANT_CALLRATE.out.plink
+            ch_variant_exclusions = ch_variant_exclusions.mix(VARIANT_CALLRATE.out.removed_variants)
+            ch_qc_summaries       = ch_qc_summaries.mix(VARIANT_CALLRATE.out.summary)
+            ch_qc_summaries       = ch_qc_summaries.mix(VARIANT_CALLRATE.out.cc_miss_summary)
+            ch_qc_plots           = ch_qc_plots.mix(VARIANT_CALLRATE.out.plots)
+        } else {
+            log.warn "SKIPPING: Variant missingness (run_variant_missingness = false)"
+        }
+
+        if (params.run_maf_filter) {
+            MAF_FILTER(ch_cleaned)
+            ch_cleaned            = MAF_FILTER.out.plink
+            ch_variant_exclusions = ch_variant_exclusions.mix(MAF_FILTER.out.removed_variants)
+            ch_qc_summaries       = ch_qc_summaries.mix(MAF_FILTER.out.summary)
+            ch_qc_plots           = ch_qc_plots.mix(MAF_FILTER.out.plots)
+        } else {
+            log.warn "SKIPPING: MAF filter (run_maf_filter = false)"
+        }
+
+        if (params.run_hwe) {
+            HWE_FILTER(ch_cleaned, ch_pheno)
+            ch_cleaned            = HWE_FILTER.out.plink
+            ch_variant_exclusions = ch_variant_exclusions.mix(HWE_FILTER.out.removed_variants)
+            ch_qc_summaries       = ch_qc_summaries.mix(HWE_FILTER.out.summary)
+            ch_qc_plots           = ch_qc_plots.mix(HWE_FILTER.out.plots)
+        } else {
+            log.warn "SKIPPING: HWE filter (run_hwe = false)"
+        }
+
+    } else {
+        log.warn "SKIPPING: Variant-level QC on clean samples (run_variant_qc = false)"
+    }
+
+    ch_final = ch_cleaned
+
+    // Collect all variant exclusion IDs (from both Phase 2 and Phase 3b)
+    ch_all_excluded_variants = ch_variant_exclusions.collectFile(
+        name:     'all_excluded_variants.txt',
+        newLine:  true,
+        storeDir: "${params.outdir}/exclusion_lists"
+    )
 
     // ════════════════════════════════════════════════════════════════════════
     //  PHASE 4 — Final report

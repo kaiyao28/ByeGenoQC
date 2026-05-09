@@ -237,11 +237,13 @@ if batch_rows_data:
         f"<td>{r[3]}</td><td>{r[4]}%</td></tr>"
         for r in batch_rows_data
     )
-    batch_html = f'''<h2>Per-batch QC Summary</h2>
-<table>
-<tr><th>Batch</th><th>Samples</th><th>Removed</th><th>Pass</th><th>Pass %</th></tr>
-{brows}
-</table>'''
+    batch_html = (
+        "<h2>Per-batch QC Summary</h2>\n"
+        "<table>\n"
+        "<tr><th>Batch</th><th>Samples</th><th>Removed</th><th>Pass</th><th>Pass %</th></tr>\n"
+        + brows
+        + "\n</table>"
+    )
 
 # ── Per-sample HTML table ─────────────────────────────────────────────────────
 per_sample_html = ""
@@ -258,16 +260,19 @@ if sample_rows_data:
         + f"<td>{html.escape(r[14])}</td></tr>"
         for r in sample_rows_data
     )
-    per_sample_html = f'''<h2>Per-sample QC Table</h2>
-<p>Full table available as <code>qc_per_sample.tsv</code>. Flags in red indicate QC failure at that step.</p>
-<div class="scroll-table">
-<table>
-<tr><th>FID</th><th>IID</th><th>F_MISS</th><th>HET_RATE</th><th>X_F_STAT</th>
-<th>PEDSEX</th><th>SNPSEX</th><th>SEX_STATUS</th>
-<th>SMISS</th><th>HET_OUT</th><th>SEX_DISC</th><th>RELATED</th><th>ANC_OUT</th><th>QC_FAIL</th><th>BATCH</th></tr>
-{srows}
-</table>
-</div>'''
+    per_sample_html = (
+        "<h2>Per-sample QC Table</h2>\n"
+        "<p>Full table available as <code>qc_per_sample.tsv</code>."
+        " Flags in red indicate QC failure at that step.</p>\n"
+        '<div class="scroll-table">\n'
+        "<table>\n"
+        "<tr><th>FID</th><th>IID</th><th>F_MISS</th><th>HET_RATE</th><th>X_F_STAT</th>\n"
+        "<th>PEDSEX</th><th>SNPSEX</th><th>SEX_STATUS</th>\n"
+        "<th>SMISS</th><th>HET_OUT</th><th>SEX_DISC</th><th>RELATED</th>"
+        "<th>ANC_OUT</th><th>QC_FAIL</th><th>BATCH</th></tr>\n"
+        + srows
+        + "\n</table>\n</div>"
+    )
 
 # ── Collect and base64-encode all QC plots ────────────────────────────────
 plot_order = [
@@ -314,69 +319,73 @@ scope_warning = ""
 if "${qc_scope}" == "provisional":
     scope_warning = "<p class='warn'>Sample-level QC is provisional because not all autosomes were analysed.</p>"
 
-html_doc = f'''<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>SNP Array QC Report — ${meta.id}</title>
-<style>
-body {{ font-family: Arial, sans-serif; max-width: 1400px; margin: auto; padding: 20px; color: #333; }}
-h1 {{ color: #2c6fad; border-bottom: 2px solid #2c6fad; }}
-h2 {{ color: #2c6fad; margin-top: 32px; }}
-table {{ border-collapse: collapse; width: 100%; margin-bottom: 20px; }}
-th {{ background: #2c6fad; color: white; padding: 8px 12px; text-align: left; }}
-td {{ border: 1px solid #ccc; padding: 7px 12px; }}
-tr:nth-child(even) {{ background: #f9f9f9; }}
-.info {{ background: #e3f2fd; padding: 12px; border-radius: 4px; margin: 10px 0; }}
-.warn {{ color: #a33; }}
-.plots {{ display: flex; flex-wrap: wrap; gap: 16px; }}
-figure {{ margin: 0; flex: 0 0 calc(50% - 8px); box-sizing: border-box; }}
-figure img {{ width: 100%; border: 1px solid #ddd; border-radius: 4px; }}
-figcaption {{ text-align: center; font-size: 0.85em; color: #555; margin-top: 4px; }}
-.scroll-table {{ max-height: 420px; overflow-y: auto; border: 1px solid #ccc; }}
-.scroll-table table {{ margin-bottom: 0; }}
-.scroll-table th {{ position: sticky; top: 0; z-index: 1; }}
-td.yes {{ color: #b22; font-weight: bold; }}
-td.no  {{ color: #555; }}
-</style>
-</head>
-<body>
-<h1>SNP Array QC Report</h1>
-<p class="info"><strong>Dataset:</strong> ${meta.id} &nbsp;|&nbsp;
-<strong>Chromosomes:</strong> ${params.chroms} &nbsp;|&nbsp;
-<strong>Sample QC scope:</strong> ${qc_scope} &nbsp;|&nbsp;
-<strong>Generated:</strong> {now}</p>
-{scope_warning}
+attrition_body = "".join(summary_rows) if summary_rows else '<tr><td colspan="4">No summary files were produced.</td></tr>'
+threshold_body = "".join(threshold_rows)
 
-<h2>Summary</h2>
-<table>
-<tr><th>Metric</th><th>Value</th></tr>
-<tr><td>Final samples</td><td>{final_samples}</td></tr>
-<tr><td>Final variants</td><td>{final_variants}</td></tr>
-<tr><td>Excluded samples</td><td>{excluded_sample_count}</td></tr>
-<tr><td>Excluded variants</td><td>{excluded_variant_count}</td></tr>
-</table>
-
-<h2>QC Attrition</h2>
-<table>
-<tr><th>Phase</th><th>Step</th><th>Metric</th><th>Value</th></tr>
-{''.join(summary_rows) if summary_rows else '<tr><td colspan="4">No summary files were produced.</td></tr>'}
-</table>
-
-<h2>Thresholds and Run Settings</h2>
-<table>
-<tr><th>Parameter</th><th>Value</th></tr>
-{''.join(threshold_rows)}
-</table>
-
-{batch_html}
-
-{per_sample_html}
-
-{plot_html}
-</body>
-</html>
-'''
+html_doc = "\n".join([
+    "<!DOCTYPE html>",
+    '<html lang="en">',
+    "<head>",
+    '<meta charset="UTF-8">',
+    "<title>SNP Array QC Report — ${meta.id}</title>",
+    "<style>",
+    "body { font-family: Arial, sans-serif; max-width: 1400px; margin: auto; padding: 20px; color: #333; }",
+    "h1 { color: #2c6fad; border-bottom: 2px solid #2c6fad; }",
+    "h2 { color: #2c6fad; margin-top: 32px; }",
+    "table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }",
+    "th { background: #2c6fad; color: white; padding: 8px 12px; text-align: left; }",
+    "td { border: 1px solid #ccc; padding: 7px 12px; }",
+    "tr:nth-child(even) { background: #f9f9f9; }",
+    ".info { background: #e3f2fd; padding: 12px; border-radius: 4px; margin: 10px 0; }",
+    ".warn { color: #a33; }",
+    ".plots { display: flex; flex-wrap: wrap; gap: 16px; }",
+    "figure { margin: 0; flex: 0 0 calc(50% - 8px); box-sizing: border-box; }",
+    "figure img { width: 100%; border: 1px solid #ddd; border-radius: 4px; }",
+    "figcaption { text-align: center; font-size: 0.85em; color: #555; margin-top: 4px; }",
+    ".scroll-table { max-height: 420px; overflow-y: auto; border: 1px solid #ccc; }",
+    ".scroll-table table { margin-bottom: 0; }",
+    ".scroll-table th { position: sticky; top: 0; z-index: 1; }",
+    "td.yes { color: #b22; font-weight: bold; }",
+    "td.no  { color: #555; }",
+    "</style>",
+    "</head>",
+    "<body>",
+    "<h1>SNP Array QC Report</h1>",
+    '<p class="info"><strong>Dataset:</strong> ${meta.id} &nbsp;|&nbsp;'
+    + "<strong>Chromosomes:</strong> ${params.chroms} &nbsp;|&nbsp;"
+    + "<strong>Sample QC scope:</strong> ${qc_scope} &nbsp;|&nbsp;"
+    + f"<strong>Generated:</strong> {now}</p>",
+    scope_warning,
+    "",
+    "<h2>Summary</h2>",
+    "<table>",
+    "<tr><th>Metric</th><th>Value</th></tr>",
+    f"<tr><td>Final samples</td><td>{final_samples}</td></tr>",
+    f"<tr><td>Final variants</td><td>{final_variants}</td></tr>",
+    f"<tr><td>Excluded samples</td><td>{excluded_sample_count}</td></tr>",
+    f"<tr><td>Excluded variants</td><td>{excluded_variant_count}</td></tr>",
+    "</table>",
+    "",
+    "<h2>QC Attrition</h2>",
+    "<table>",
+    "<tr><th>Phase</th><th>Step</th><th>Metric</th><th>Value</th></tr>",
+    attrition_body,
+    "</table>",
+    "",
+    "<h2>Thresholds and Run Settings</h2>",
+    "<table>",
+    "<tr><th>Parameter</th><th>Value</th></tr>",
+    threshold_body,
+    "</table>",
+    "",
+    batch_html,
+    "",
+    per_sample_html,
+    "",
+    plot_html,
+    "</body>",
+    "</html>",
+])
 
 with open("final_report.html", "w") as out:
     out.write(html_doc)

@@ -84,10 +84,14 @@ process ANCESTRY_PCA {
 
     # ── PCA (study data only, or merged with reference) ───────────────────────
     ${has_ref ? """
-    # Merge study data with reference panel
-    # Align strand and allele coding before merging
+    # Merge study data with reference panel.
+    # Palindromic SNPs (A/T and C/G) cannot be reliably strand-aligned between
+    # datasets — exclude them up front so the flip-and-retry logic handles only
+    # genuine strand swaps, not ambiguous palindromes.
     awk 'NR==FNR{a[\$2]=1; next} a[\$2]' prune_pca.prune.in ${bim} | \\
-        awk '{print \$2}' > common_snps.txt
+        awk '!((\$5=="A"&&\$6=="T")||(\$5=="T"&&\$6=="A")|| \\
+               (\$5=="C"&&\$6=="G")||(\$5=="G"&&\$6=="C")){print \$2}' \\
+        > common_snps.txt
 
     plink \\
         --bfile ${reference_panel} \\
@@ -96,22 +100,36 @@ process ANCESTRY_PCA {
         --out ref_subset \\
         --allow-no-sex
 
+    # Round 1: initial merge attempt
     plink \\
         --bfile ${bed.baseName} \\
-        --extract prune_pca.prune.in \\
+        --extract common_snps.txt \\
         --bmerge ref_subset \\
-        --merge-mode 6 \\
         --make-bed \\
         --out merged_study_ref \\
         --allow-no-sex || true
 
-    # If merge fails due to strand flips, flip and retry
+    # Round 2: flip conflicting SNPs on reference side and retry
     if [ -f merged_study_ref-merge.missnp ]; then
+        n1=\$(wc -l < merged_study_ref-merge.missnp)
+        echo "Merge round 1: \${n1} strand-conflicting SNPs — flipping reference"
         plink --bfile ref_subset --flip merged_study_ref-merge.missnp \\
-              --make-bed --out ref_flipped --allow-no-sex
-        plink --bfile ${bed.baseName} --extract prune_pca.prune.in \\
-              --bmerge ref_flipped --merge-mode 6 --make-bed \\
-              --out merged_study_ref --allow-no-sex
+              --make-bed --out ref_round2 --allow-no-sex
+        plink --bfile ${bed.baseName} --extract common_snps.txt \\
+              --bmerge ref_round2 --make-bed \\
+              --out merged_study_ref --allow-no-sex || true
+
+        # Round 3: still conflicts after flip → exclude remaining problem SNPs
+        if [ -f merged_study_ref-merge.missnp ]; then
+            n2=\$(wc -l < merged_study_ref-merge.missnp)
+            echo "Merge round 2: \${n2} SNPs unresolvable after flip — excluding"
+            plink --bfile ref_round2 --exclude merged_study_ref-merge.missnp \\
+                  --make-bed --out ref_round3 --allow-no-sex
+            grep -Fxvf merged_study_ref-merge.missnp common_snps.txt > common_snps_clean.txt
+            plink --bfile ${bed.baseName} --extract common_snps_clean.txt \\
+                  --bmerge ref_round3 --make-bed \\
+                  --out merged_study_ref --allow-no-sex
+        fi
     fi
 
     plink \\

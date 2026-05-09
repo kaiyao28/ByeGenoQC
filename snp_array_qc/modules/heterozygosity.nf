@@ -153,7 +153,7 @@ RSCRIPT
 library(ggplot2)
 het   <- read.table("heterozygosity.het", header=TRUE)
 imiss <- read.table("miss_for_plot.imiss", header=TRUE)
-het$het_rate   <- (het$N.NM. - het$O.HOM.) / het$N.NM.
+het$het_rate    <- (het$N.NM. - het$O.HOM.) / het$N.NM.
 imiss$logF_MISS <- log10(pmax(imiss$F_MISS, 1e-5))
 merged <- merge(het[, c("FID","IID","het_rate")],
                 imiss[, c("FID","IID","logF_MISS")],
@@ -162,20 +162,36 @@ mean_het <- mean(merged$het_rate)
 sd_het   <- sd(merged$het_rate)
 lo <- mean_het - ${params.heterozygosity_sd} * sd_het
 hi <- mean_het + ${params.heterozygosity_sd} * sd_het
-p <- ggplot(merged, aes(x=logF_MISS, y=het_rate)) +
-    geom_point(alpha=0.4, size=0.8, colour="steelblue") +
-    geom_hline(yintercept=c(lo, hi), linetype="dashed", colour="red") +
-    geom_vline(xintercept=log10(${params.sample_missingness}), linetype="dashed", colour="darkred") +
-    scale_x_continuous(
-        breaks=c(-4, -3, -2, -1, 0),
-        labels=c("0.0001", "0.001", "0.01", "0.1", "1")
-    ) +
+
+x_breaks <- c(-4, -3, -2, -1, 0)
+x_labels <- c("0.0001", "0.001", "0.01", "0.1", "1")
+cutoffs <- list(
+    geom_hline(yintercept=c(lo, hi), linetype="dashed", colour="red", linewidth=0.8),
+    geom_vline(xintercept=log10(${params.sample_missingness}), linetype="dashed", colour="darkred", linewidth=0.8),
+    scale_x_continuous(breaks=x_breaks, labels=x_labels),
     labs(title="Sample missingness vs heterozygosity rate",
-         subtitle="Red dashed: het ±${params.heterozygosity_sd} SD; dark-red dashed: missingness threshold",
+         subtitle="Red dashed: het ±${params.heterozygosity_sd} SD; dark-red: missingness threshold",
          x="Proportion of missing genotypes (log10 scale)",
-         y="Heterozygosity rate") +
+         y="Heterozygosity rate"),
     theme_classic()
-ggsave("miss_het_scatter.png", p, width=8, height=6)
+)
+
+n_samples <- nrow(merged)
+if (n_samples > 5000) {
+    # Large cohort: 2D hex density — scatter becomes unreadable above ~5k samples
+    p <- ggplot(merged, aes(x=logF_MISS, y=het_rate)) +
+        geom_hex(bins=80) +
+        scale_fill_viridis_c(name="Count", trans="log1p", option="C") +
+        cutoffs
+} else {
+    # Small/medium cohort: density-coloured scatter (matches training practical)
+    dens <- densCols(merged$logF_MISS, merged$het_rate, nbin=256,
+                     colramp=colorRampPalette(c("grey70","steelblue","orange","red")))
+    p <- ggplot(merged, aes(x=logF_MISS, y=het_rate)) +
+        geom_point(colour=dens, size=1.2, alpha=0.9) +
+        cutoffs
+}
+ggsave("miss_het_scatter.png", p, width=8, height=6, dpi=150)
 RSCRIPT
     fi
     """
