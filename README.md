@@ -17,6 +17,48 @@ At the end you get a self-contained HTML report with the full attrition table, a
 
 ---
 
+## Pipeline Overview
+
+<!-- DAG diagrams generated with: nextflow run <workflow> -with-dag assets/<name>_dag.html -preview -->
+<!-- Open the HTML files in a browser to view the interactive pipeline graph -->
+
+| Workflow | DAG |
+|----------|-----|
+| SNP Array QC | [snp_array_dag.html](assets/snp_array_dag.html) |
+| WGS / WES QC | [wgs_dag.html](assets/wgs_dag.html) |
+
+To regenerate the diagrams:
+
+```bash
+# SNP array
+nextflow run snp_array_qc/main.nf \
+  --bfile test_data/snp_array/toy \
+  --run_variant_qc true \
+  --run_sample_qc true \
+  --run_final_report true \
+  --outdir results/dag_test \
+  -profile docker \
+  -with-dag assets/snp_array_dag.html \
+  -preview
+
+# WGS / WES
+nextflow run wgs_wes_qc/main.nf \
+  --input_type vcf \
+  --samplesheet test_data/wgs_wes/samplesheet_vcf.csv \
+  --reference_fasta test_data/reference/mini.fa \
+  --mode wgs \
+  --chroms 22 \
+  --run_variant_qc true \
+  --run_sample_qc false \
+  --run_final_report true \
+  --outdir results/dag_test \
+  -profile docker \
+  -with-dag assets/wgs_dag.html \
+  -preview
+```
+
+---
+
 ## Quick Start
 
 ```bash
