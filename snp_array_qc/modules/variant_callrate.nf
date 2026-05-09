@@ -70,8 +70,9 @@ process VARIANT_CALLRATE {
     touch cc_miss_removed.txt
     touch cc_miss_summary.txt
 
-    if [ "\${n_cases}" -gt 0 ] && [ "\${n_controls}" -gt 0 ]; then
-        echo "Case-control data detected — running differential missingness test"
+    if [ "\${n_cases}" -gt 0 ] && [ "\${n_controls}" -gt 0 ] && \
+       [ "${params.cc_miss_p}" != "null" ]; then
+        echo "Case-control data detected — running differential missingness test (p<${params.cc_miss_p})"
         plink \\
             --bfile ${bed.baseName} \\
             --test-missing \\

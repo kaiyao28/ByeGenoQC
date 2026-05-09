@@ -90,8 +90,8 @@ process HWE_FILTER {
     # is used for all variants.
     n_chrx_snps=\$(awk 'NR>1 && \$1+0==23' hwe_stats.hwe | wc -l)
 
-    if [ "\${n_chrx_snps}" -gt 0 ]; then
-        # chrX present — apply separate, more permissive threshold.
+    if [ "\${n_chrx_snps}" -gt 0 ] && [ "${params.hwe_p_chrx}" != "null" ]; then
+        # chrX present with a separate, more permissive threshold.
         # Males are hemizygous on X; PLINK computes X HWE in females only,
         # making the test noisier. Using a relaxed threshold avoids over-filtering.
         awk -v a="${params.hwe_p}" -v x="${params.hwe_p_chrx}" -v t="\${hwe_test}" \\
@@ -100,12 +100,16 @@ process HWE_FILTER {
         chrx_mode="separate_threshold_p${params.hwe_p_chrx}"
         echo "chrX SNPs detected (\${n_chrx_snps}) — using chrX threshold p<${params.hwe_p_chrx}"
     else
-        # No chrX SNPs — autosome threshold applied to all variants
+        # No chrX SNPs, or hwe_p_chrx not set — autosome threshold applied to all variants
         awk -v a="${params.hwe_p}" -v t="\${hwe_test}" \\
             'NR>1 && \$3==t && \$9+0<a {print \$2}' \\
             hwe_stats.hwe > hwe_exclude.txt
-        chrx_mode="no_chrx_snps"
-        echo "No chrX SNPs in dataset — autosome threshold applied to all variants"
+        if [ "\${n_chrx_snps}" -gt 0 ]; then
+            chrx_mode="autosome_threshold_applied_to_chrx"
+        else
+            chrx_mode="no_chrx_snps"
+        fi
+        echo "Using autosome threshold p<${params.hwe_p} for all variants"
     fi
 
     n_hwe_fail=\$(wc -l < hwe_exclude.txt)
