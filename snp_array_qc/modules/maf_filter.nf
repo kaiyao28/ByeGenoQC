@@ -64,6 +64,12 @@ process MAF_FILTER {
     n_var_after=\$(wc -l < ${prefix}_maf.bim)
     n_removed=\$(( n_var_before - n_var_after ))
 
+    if [ "\${n_var_after}" -eq 0 ]; then
+        echo "ERROR: MAF filter removed ALL \${n_var_before} variants." >&2
+        echo "Threshold used: ${params.maf}. Try --maf 0.001 or --run_maf_filter false." >&2
+        exit 1
+    fi
+
     awk 'NR==FNR{seen[\$2]=1; next} !seen[\$2]{print \$2}' \\
         ${prefix}_maf.bim ${bim} > maf_removed_variants.txt
 

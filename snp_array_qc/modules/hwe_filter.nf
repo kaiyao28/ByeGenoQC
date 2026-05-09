@@ -133,6 +133,12 @@ process HWE_FILTER {
     n_var_after=\$(wc -l < ${prefix}_hwe.bim)
     n_removed=\$(( n_var_before - n_var_after ))
 
+    if [ "\${n_var_after}" -eq 0 ]; then
+        echo "ERROR: HWE filter removed ALL \${n_var_before} variants." >&2
+        echo "Threshold used: autosomes p<${params.hwe_p}. Try --hwe_p 1e-4 or --run_hwe false." >&2
+        exit 1
+    fi
+
     # ── Record removed variant IDs ────────────────────────────────────────────
     awk 'NR==FNR{seen[\$2]=1; next} !seen[\$2]{print \$2}' \\
         ${prefix}_hwe.bim ${bim} > hwe_removed_variants.txt

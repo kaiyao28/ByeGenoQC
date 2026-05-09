@@ -59,6 +59,23 @@ process HETEROZYGOSITY {
         --out prune_het \\
         --allow-no-sex
 
+    # ── Guard: skip if LD pruning produced no variants ───────────────────────
+    n_pruned=\$(wc -l < prune_het.prune.in 2>/dev/null || echo 0)
+    if [ "\${n_pruned}" -eq 0 ]; then
+        echo "WARNING: No variants survived LD pruning — heterozygosity check skipped"
+        touch heterozygosity_outliers.txt
+        printf "FID IID O(HOM) E(HOM) N(NM) F\n" > heterozygosity.het
+        cat > heterozygosity_summary.txt << EOF
+step=heterozygosity
+dataset=${meta.id}
+status=skipped_no_pruned_variants
+sd_threshold=${params.heterozygosity_sd}
+n_samples=0
+n_outliers_removed=0
+EOF
+        exit 0
+    fi
+
     # ── Calculate heterozygosity on pruned set ────────────────────────────────
     plink \\
         --bfile ${bed.baseName} \\
@@ -85,8 +102,17 @@ with open("heterozygosity.het") as fh:
             het_rate = (n_nm - o_hom) / n_nm
             data.append((fid, iid, het_rate))
 
-if not data:
-    sys.exit("ERROR: no data in heterozygosity.het")
+if len(data) < 2:
+    with open("heterozygosity_outliers.txt", "w") as out:
+        pass
+    with open("heterozygosity_summary.txt", "w") as out:
+        out.write("step=heterozygosity\n")
+        out.write("dataset=${meta.id}\n")
+        out.write("status=skipped_too_few_samples\n")
+        out.write(f"n_samples={len(data)}\n")
+        out.write("n_outliers_removed=0\n")
+    print(f"WARNING: Only {len(data)} sample(s) — cannot compute SD, skipping het outlier detection")
+    sys.exit(0)
 
 rates = [d[2] for d in data]
 mean_het = sum(rates) / len(rates)

@@ -16,6 +16,7 @@ header-includes:
   - \floatplacement{figure}{H}
   - \usepackage{caption}
   - \captionsetup{font=small}
+  - \usepackage{xcolor}
 ---
 
 ```{r setup, include=FALSE}
@@ -99,6 +100,16 @@ atr_rows[[length(atr_rows) + 1]] <-
 
 atr_df <- do.call(rbind, atr_rows)
 
+# Sort by pipeline execution order
+step_order <- c("input_check", "imputation_filter", "duplicate_variant_check",
+                "sample_callrate", "sex_check", "heterozygosity", "relatedness", "ancestry_pca",
+                "cc_miss_test", "variant_callrate", "maf_filter", "hwe_filter",
+                "cleaned_data", "exclusions")
+atr_df$sort_key <- match(atr_df$Step, step_order)
+atr_df$sort_key[is.na(atr_df$sort_key)] <- length(step_order) + 1L
+atr_df <- atr_df[order(atr_df$sort_key), ]
+atr_df$sort_key <- NULL
+
 # Write attrition TSV
 write.table(atr_df, "qc_attrition_table.tsv",
             sep = "\t", quote = FALSE, row.names = FALSE,
@@ -147,7 +158,9 @@ sex_ids     <- read_id_pairs("sex_discordant.txt")
 related_ids <- read_id_pairs("relatedness_remove.txt")
 anc_ids     <- read_id_pairs("ancestry_outliers.txt")
 
-sample_qc_run <- !is.null(imiss_df) || !is.null(het_df) || !is.null(sex_df)
+sample_qc_run <- (!is.null(imiss_df) && nrow(imiss_df) > 0) ||
+                 (!is.null(het_df)   && nrow(het_df)   > 0) ||
+                 (!is.null(sex_df)   && nrow(sex_df)   > 0)
 
 ps_df <- NULL
 if (sample_qc_run) {
@@ -225,9 +238,11 @@ if (sample_qc_run) {
 
 ---
 
-**Dataset:** `r dataset_id` $\quad$ **Chromosomes:** `r chroms` $\quad$ **Sample QC scope:** `r qc_scope`
+**Dataset:** `r dataset_id` $\quad$ **Chromosomes:** `r chroms`
 
-`r if (qc_scope == "provisional") "\\textbf{\\color{red}{Warning: provisional scope — not all autosomes analysed. Results are indicative only.}}" else ""`
+**Variant QC:** `r if (run_variant_qc == "true") "run" else "skipped"` $\quad$ **Sample QC:** `r if (qc_scope == "not_run") "not run" else sprintf("run (scope: %s)", qc_scope)`
+
+`r if (qc_scope == "provisional") "\\textbf{\\color{red}{Warning: provisional scope — not all autosomes analysed. Results are indicative only.}}" else if (qc_scope == "not_run") "\\textit{Sample-level QC was not run for this execution. Per-sample and per-batch tables are not applicable.}" else ""`
 
 # Summary
 
@@ -322,22 +337,13 @@ sort_key <- function(f) {
 pngs <- list.files(".", pattern = "\\.png$", full.names = FALSE)
 pngs <- pngs[order(sapply(pngs, sort_key))]
 
-for (i in seq_along(pngs)) {
-  f     <- pngs[i]
+for (f in pngs) {
   label <- tools::toTitleCase(gsub("_", " ", sub("\\.png$", "", basename(f))))
   cat(sprintf("\n## %s\n\n", label))
-  # knit_child spawns a proper figure chunk for each PNG so knitr wraps it in
-  # a LaTeX figure environment with caption — plain print(include_graphics())
-  # inside results='asis' bypasses that and produces no figure environment.
-  cat(knitr::knit_child(
-    text  = sprintf(
-      '```{r plot-%d, echo=FALSE, fig.cap="%s", out.width="90%%"}\nknitr::include_graphics("%s")\n```',
-      i, label, f
-    ),
-    quiet = TRUE,
-    envir = environment()
-  ))
-  cat("\n\n")
+  # Pandoc markdown image syntax: pandoc converts this to \includegraphics in
+  # the LaTeX pass. Using results='asis' so the raw markdown reaches pandoc
+  # directly without going through knitr's figure rendering machinery.
+  cat(sprintf("![%s](%s){width=90%%}\n\n", label, f))
 }
 
 if (length(pngs) == 0) cat("_No QC plots were produced._\n")

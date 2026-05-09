@@ -49,9 +49,29 @@ process SEX_CHECK {
     script:
     def prefix = "${meta.id}"
     """
+    # ── Guard: skip gracefully if no chrX variants are present ───────────────
+    n_chrx=\$(awk '\$1==23 || \$1=="X"' ${bim} | wc -l)
+    if [ "\${n_chrx}" -eq 0 ]; then
+        echo "WARNING: No chrX variants found in ${bim} — sex check skipped"
+        touch sex_discordant.txt
+        printf "FID IID PEDSEX SNPSEX STATUS F\n" > sex_check.sexcheck
+        cat > sex_check_summary.txt << EOF
+step=sex_check
+dataset=${meta.id}
+status=skipped_no_chrx_variants
+f_lower_female=${params.sex_check_f_lower_female}
+f_upper_male=${params.sex_check_f_upper_male}
+n_total=0
+n_concordant=0
+n_discordant=0
+n_ambiguous=0
+n_flagged=0
+EOF
+        exit 0
+    fi
+
     # ── Run PLINK sex check ───────────────────────────────────────────────────
     # PLINK uses X-chromosome SNPs to estimate the F inbreeding coefficient.
-    # Requires chrX SNPs to be present; the process will warn if absent.
     plink \\
         --bfile ${bed.baseName} \\
         --check-sex ${params.sex_check_f_lower_female} ${params.sex_check_f_upper_male} \\

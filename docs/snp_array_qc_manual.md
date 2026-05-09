@@ -604,24 +604,26 @@ plink2 --pfile ... --set-all-var-ids @:#:\$r:\$a --make-bed --out chr_all
 
 ```
 results/snp_array_qc/
-├── cleaned_data/              # final QC-passed PLINK files
-├── exclusion_lists/           # all_excluded_samples.txt, all_excluded_variants.txt
-├── qc_tables/                 # per-step summary .txt files and PLINK raw outputs
-│   ├── sample_missingness.imiss
-│   ├── heterozygosity.het
-│   ├── sex_check.sexcheck
-│   ├── variant_missingness.lmiss
-│   ├── relatedness.genome
-│   ├── cc_miss_removed.txt    # case-control only
-│   └── ...
-├── qc_plots/                  # PNG plots (one per QC step)
-├── final_report.html          # self-contained HTML: attrition table, plots, per-sample table
-├── qc_report.pdf              # multi-page PDF: title page + one plot per page + batch summary
-├── qc_attrition_table.tsv     # machine-readable step-by-step counts
-├── qc_thresholds.tsv          # all parameters used in this run
-├── qc_per_sample.tsv          # per-sample: F_MISS, HET_RATE, sex check, QC flags, batch
-├── qc_per_batch.tsv           # per-batch: sample count, removed, pass rate
-└── pca_covariates.txt         # GWAS/PRS-ready: study samples × first N PCs (tab-separated)
+├── 01_input/                  # input_summary.txt, pipeline tool versions
+├── 02_variant_cleanup/        # imputation filter and duplicate check outputs
+│   ├── tables/                # summary .txt, imputation_fail.txt, duplicate_variants.txt
+│   └── plots/                 # imputation_r2_plot.png (when imputation filter is run)
+├── 03_sample_qc/              # sample-level QC outputs (only when --run_sample_qc true)
+│   ├── tables/                # .imiss, .het, .sexcheck, .genome, .eigenvec, .eigenval, summaries
+│   └── plots/                 # sex_check_F_stat, heterozygosity, miss_het_scatter,
+│                              # relatedness_pi_hat, pca_scree, pca_plot
+├── 04_variant_qc/             # variant QC on the clean sample set
+│   ├── tables/                # .lmiss, variant summaries, cc_miss tables (case-control only)
+│   └── plots/                 # vmiss_plot, maf_plot, hwe_plot, cc_miss_plot
+├── 05_cleaned_data/           # final QC-passed PLINK files
+│   ├── exclusion_lists/       # all_excluded_samples.txt, all_excluded_variants.txt
+│   └── pca_covariates.txt     # GWAS/PRS-ready: study samples × first N PCs (tab-separated)
+└── 06_report/                 # final report outputs
+    ├── qc_report.pdf          # multi-page PDF: attrition table, all plots, per-sample table
+    ├── qc_attrition_table.tsv # machine-readable step-by-step counts
+    ├── qc_thresholds.tsv      # all parameters used in this run
+    ├── qc_per_sample.tsv      # per-sample: F_MISS, HET_RATE, sex check, QC flags, batch
+    └── qc_per_batch.tsv       # per-batch: sample count, removed, pass rate
 ```
 
 ---
@@ -632,11 +634,11 @@ When `main.nf` finishes, the terminal prints the location of every output file. 
 
 ### Cleaned dataset
 
-`cleaned_data/` contains the QC-passed PLINK binary files, ready for association analysis:
+`05_cleaned_data/` contains the QC-passed PLINK binary files, ready for association analysis:
 ```
-results/snp_array_qc/cleaned_data/genotypes_sample_qc_pass.bed
-results/snp_array_qc/cleaned_data/genotypes_sample_qc_pass.bim
-results/snp_array_qc/cleaned_data/genotypes_sample_qc_pass.fam
+results/snp_array_qc/05_cleaned_data/genotypes_sample_qc_pass.bed
+results/snp_array_qc/05_cleaned_data/genotypes_sample_qc_pass.bim
+results/snp_array_qc/05_cleaned_data/genotypes_sample_qc_pass.fam
 ```
 
 ### PCA covariates
@@ -655,11 +657,11 @@ The file contains only study-cohort samples (reference panel samples excluded if
 
 ### Review the report
 
-Open `final_report.html` in a browser. It shows the full attrition table (samples and variants removed at each step), all plots, the per-sample QC table, and the exact thresholds used. If any step removed far more samples or variants than expected, re-run `inspect.nf` and adjust the relevant threshold.
+Open `06_report/qc_report.pdf`. It shows the full attrition table (samples and variants removed at each step), all plots, the per-sample QC table, and the exact thresholds used. If any step removed far more samples or variants than expected, re-run `inspect.nf` and adjust the relevant threshold.
 
 ### Exclusion lists
 
-`exclusion_lists/all_excluded_samples.txt` and `all_excluded_variants.txt` contain every ID removed. Keep these files — they are needed if you need to apply the same QC to a replication cohort.
+`05_cleaned_data/exclusion_lists/all_excluded_samples.txt` and `all_excluded_variants.txt` contain every ID removed. Keep these files — they are needed if you need to apply the same QC to a replication cohort.
 
 ### Pheno file format
 

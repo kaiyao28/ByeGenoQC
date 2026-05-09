@@ -69,6 +69,24 @@ process RELATEDNESS {
         --out prune_rel \\
         --allow-no-sex
 
+    # ── Guard: skip if LD pruning produced no variants ───────────────────────
+    n_pruned=\$(wc -l < prune_rel.prune.in 2>/dev/null || echo 0)
+    if [ "\${n_pruned}" -eq 0 ]; then
+        echo "WARNING: No variants survived LD pruning — relatedness check skipped"
+        touch relatedness_remove.txt
+        printf "FID1 IID1 FID2 IID2 RT EZ Z0 Z1 Z2 PI_HAT PHI_HAT HAT\n" > relatedness.genome
+        cat > relatedness_summary.txt << EOF
+step=relatedness
+dataset=${meta.id}
+status=skipped_no_pruned_variants
+pi_hat_threshold=${params.relatedness_pi_hat}
+n_related_pairs=0
+n_duplicate_pairs=0
+n_samples_removed=0
+EOF
+        exit 0
+    fi
+
     # ── IBD estimation ────────────────────────────────────────────────────────
     # --genome outputs pairwise IBD estimates
     # --min filters to pairs exceeding the PI_HAT threshold (saves disk space)

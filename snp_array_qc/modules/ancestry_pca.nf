@@ -82,6 +82,38 @@ process ANCESTRY_PCA {
         --out prune_pca \\
         --allow-no-sex
 
+    # ── Guard: skip if LD pruning produced no variants ───────────────────────
+    n_pruned=\$(wc -l < prune_pca.prune.in 2>/dev/null || echo 0)
+    if [ "\${n_pruned}" -eq 0 ]; then
+        echo "WARNING: No variants survived LD pruning — ancestry PCA skipped"
+        touch ancestry_outliers.txt
+        printf "FID\tIID\n" > pca_covariates.txt
+        awk '{print \$1"\t"\$2}' ${fam} >> pca_covariates.txt
+        printf "" > pca.eigenval
+        printf "FID IID\n" > pca.eigenvec
+        cat > pca_summary.txt << EOF
+step=ancestry_pca
+dataset=${meta.id}
+status=skipped_no_pruned_variants
+n_pcs_computed=0
+n_pcs_covariates=0
+n_samples_total=0
+n_samples_study=0
+n_outliers=0
+EOF
+        exit 0
+    fi
+
+    # ── Cap n_pcs to avoid requesting more PCs than samples allow ────────────
+    n_samples_fam=\$(wc -l < ${fam})
+    max_pcs=\$(( n_samples_fam - 1 ))
+    if [ ${params.n_pcs} -gt \${max_pcs} ]; then
+        n_pcs_actual=\${max_pcs}
+        echo "WARNING: Requested ${params.n_pcs} PCs but only \${max_pcs} possible with \${n_samples_fam} samples; using \${max_pcs}"
+    else
+        n_pcs_actual=${params.n_pcs}
+    fi
+
     # ── PCA (study data only, or merged with reference) ───────────────────────
     ${has_ref ? """
     # Merge study data with reference panel.
@@ -134,7 +166,7 @@ process ANCESTRY_PCA {
 
     plink \\
         --bfile merged_study_ref \\
-        --pca ${params.n_pcs} \\
+        --pca \${n_pcs_actual} \\
         --out pca \\
         --allow-no-sex
     """ : """
@@ -142,7 +174,7 @@ process ANCESTRY_PCA {
     plink \\
         --bfile ${bed.baseName} \\
         --extract prune_pca.prune.in \\
-        --pca ${params.n_pcs} \\
+        --pca \${n_pcs_actual} \\
         --out pca \\
         --allow-no-sex
     """}

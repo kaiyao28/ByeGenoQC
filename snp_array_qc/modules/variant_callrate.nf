@@ -127,6 +127,12 @@ RSCRIPT
     n_var_after=\$(wc -l < ${prefix}_vmiss.bim)
     n_removed=\$(( n_var_before - n_var_after ))
 
+    if [ "\${n_var_after}" -eq 0 ]; then
+        echo "ERROR: variant_missingness filter removed ALL \${n_var_before} variants." >&2
+        echo "Threshold used: ${params.variant_missingness}. Try --variant_missingness 0.05 or higher." >&2
+        exit 1
+    fi
+
     # ── Extract IDs of all removed variants ──────────────────────────────────
     awk 'NR==FNR{seen[\$2]=1; next} !seen[\$2]{print \$2}' \\
         ${prefix}_vmiss.bim ${bim} > variant_callrate_removed.txt

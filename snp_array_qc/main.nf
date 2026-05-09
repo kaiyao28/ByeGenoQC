@@ -173,7 +173,7 @@ workflow {
     ch_info_file   = params.info_file       ? Channel.value(file(params.info_file))        : Channel.value([])
 
     ch_variant_exclusions = Channel.of('')   // sentinel so collectFile always emits
-    ch_sample_exclusions  = Channel.empty()
+    ch_sample_exclusions  = Channel.of('')   // sentinel so collectFile always emits
     ch_qc_summaries       = Channel.empty()
     ch_qc_plots           = Channel.empty()
     ch_qc_data            = Channel.empty()
@@ -387,7 +387,7 @@ workflow {
             ch_all_excluded_variants,
             ch_qc_plots.collect().ifEmpty([]),
             ch_qc_data.collect().ifEmpty([]),
-            Channel.value(scope),
+            Channel.value((params.run_sample_qc && scope != "skip") ? scope : "not_run"),
             ch_report_rmd
         )
     }
@@ -433,7 +433,7 @@ process APPLY_SAMPLE_EXCLUSIONS {
 
     script:
     """
-    n_remove=\$(wc -l < ${exclusion_list} || echo 0)
+    n_remove=\$(grep -c '[^[:space:]]' ${exclusion_list} 2>/dev/null || echo 0)
     echo "Removing \${n_remove} samples flagged across all sample QC steps"
 
     plink \\

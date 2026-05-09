@@ -1,6 +1,6 @@
 # Genetic QC Pipeline
 
-Everything you need for production-grade genetic QC, batteries included. Clone the repo, run one command, get a clean dataset and an HTML report — no manual tool installation, no custom scripts.
+Everything you need for production-grade genetic QC, batteries included. Clone the repo, run one command, get a clean dataset and a PDF report — no manual tool installation, no custom scripts.
 
 The pipeline covers the full QC stack for two data types:
 
@@ -13,7 +13,7 @@ Every QC step — variant missingness, HWE, MAF, sex check, heterozygosity, rela
 
 For SNP array data, the recommended workflow has two stages: **inspect first, then filter**. The inspection step (`inspect.nf`) computes all metric distributions on unfiltered data and produces an annotated `params_template.yaml` so you can choose appropriate thresholds for your specific dataset before anything is removed. The QC step (`main.nf`) then applies those thresholds. Both steps are fast; running them sequentially takes little more time than running QC directly, and it eliminates the risk of applying the wrong threshold to your data.
 
-At the end you get a self-contained HTML report with the full attrition table, all metrics, and the exact thresholds used — ready to paste into a methods section.
+At the end you get a PDF report with the full attrition table, all metrics, and the exact thresholds used — ready to paste into a methods section.
 
 ---
 
@@ -64,12 +64,13 @@ nextflow run wgs_wes_qc/main.nf \
 ```bash
 git clone https://github.com/kaiyao28/GeneticQC.git
 cd GeneticQC
-bash test_data/run_smoke_tests.sh              # both pipelines
-bash test_data/run_smoke_tests.sh --test snp_array   # SNP array only
+bash test_data/run_smoke_tests.sh                    # all three tests
+bash test_data/run_smoke_tests.sh --test snp_array   # SNP array: variant QC only
+bash test_data/run_smoke_tests.sh --test snp_full    # SNP array: full QC (variant + sample)
 bash test_data/run_smoke_tests.sh --test wgs_wes     # WGS/WES only
 ```
 
-The smoke test script checks Docker and Nextflow, pulls the image, and runs the selected workflow(s) on synthetic toy data in `test_data/`. Both tests should complete in a few minutes and write HTML reports to `results/`.
+The smoke test script checks Docker and Nextflow, pulls the image, and runs the selected workflow(s) on synthetic toy data in `test_data/`. All tests should complete in a few minutes and write reports to `results/`.
 
 For HPC without Docker or Singularity, use `--profile manual_paths` instead (see [Setup Guide](docs/setup.md)).
 
@@ -161,9 +162,7 @@ Full parameter reference: [WGS/WES QC Manual](docs/wgs_wes_qc_manual.md)
 
 ## Reports
 
-Both workflows produce a self-contained HTML report at the end of the run.
-
-**SNP Array report** (`final_report.html`):
+**SNP Array report** (`06_report/qc_report.pdf`):
 
 | Metric | Value |
 |--------|-------|
