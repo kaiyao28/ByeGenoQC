@@ -14,7 +14,7 @@
 # =============================================================================
 set -euo pipefail
 
-IMAGE="${GENETIC_QC_DOCKER_IMAGE:-ghcr.io/kaiyao28/genetic-qc:1.0}"
+IMAGE="${GENETIC_QC_DOCKER_IMAGE:-ghcr.io/kaiyao28/genetic-qc:1.1}"
 FORCE_PULL="${GENETIC_QC_FORCE_PULL:-false}"
 PROFILE="docker"
 TEST=""   # empty = run both; "snp_array" or "wgs_wes" = run one

@@ -62,8 +62,8 @@ qc_scope            <- "${qc_scope}"
 chroms              <- "${params.chroms}"
 final_fam           <- "${fam}"
 final_bim           <- "${bim}"
-run_variant_qc      <- ${params.run_variant_qc}
-run_sample_qc       <- ${params.run_sample_qc}
+run_variant_qc      <- "${params.run_variant_qc}"
+run_sample_qc       <- "${params.run_sample_qc}"
 sample_missingness  <- ${params.sample_missingness}
 variant_missingness <- ${params.variant_missingness}
 hwe_p               <- ${params.hwe_p}
