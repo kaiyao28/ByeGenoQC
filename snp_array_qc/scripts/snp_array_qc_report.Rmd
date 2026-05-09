@@ -340,10 +340,12 @@ pngs <- pngs[order(sapply(pngs, sort_key))]
 for (f in pngs) {
   label <- tools::toTitleCase(gsub("_", " ", sub("\\.png$", "", basename(f))))
   cat(sprintf("\n## %s\n\n", label))
-  # Pandoc markdown image syntax: pandoc converts this to \includegraphics in
-  # the LaTeX pass. Using results='asis' so the raw markdown reaches pandoc
-  # directly without going through knitr's figure rendering machinery.
-  cat(sprintf("![%s](%s){width=90%%}\n\n", label, f))
+  # Use a pandoc raw-latex block so the image reaches pdflatex directly.
+  # Markdown image syntax with {width=} triggers a pandoc 3.x bug where it
+  # emits alt= as a keyval option that pdflatex's graphicx package rejects.
+  cat("```{=latex}\n")
+  cat(sprintf("\\begin{figure}[H]\n\\centering\n\\includegraphics[width=0.90\\textwidth]{%s}\n\\caption{%s}\n\\end{figure}\n", f, label))
+  cat("```\n\n")
 }
 
 if (length(pngs) == 0) cat("_No QC plots were produced._\n")
