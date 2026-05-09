@@ -5,13 +5,14 @@ generate_test_data.py — create synthetic test data for GenoClean smoke tests.
 Run from the repository root:
     python3 test_data/generate_test_data.py
 
-Overwrites:
+Writes:
     test_data/reference/mini.fa          500bp chr22 reference
     test_data/reference/mini.fa.fai      FASTA index
     test_data/wgs_wes/toy_chr22.vcf      20-variant 5-sample VCF
     test_data/wgs_wes/samplesheet_vcf.csv
-    test_data/snp_array/toy.ped          15-sample 235-variant PED
-    test_data/snp_array/toy.map          235-variant MAP
+    test_data/snp_array/toy.bed          PLINK binary (SNP-major)
+    test_data/snp_array/toy.bim          variant info
+    test_data/snp_array/toy.fam          sample info
 
 Designed QC triggers
 --------------------
@@ -35,6 +36,7 @@ VCF:
 """
 import os
 import random
+import struct
 
 random.seed(42)
 
@@ -170,7 +172,8 @@ print(f"     {len(SAMPLES_VCF)} samples  |  2 FAIL site filters  |  2 low-DP/GQ 
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  SNP Array PED / MAP — 15 samples, 235 variants
+#  SNP Array — 15 samples, 235 variants
+#  Written directly as PLINK binary (BED/BIM/FAM) — no plink required
 # ══════════════════════════════════════════════════════════════════════════════
 #
 # Sample design
@@ -215,69 +218,65 @@ ALLELE_PAIRS = [("A","G"), ("C","T"), ("A","T"), ("G","C"), ("A","C"), ("G","T")
 def ap(v):
     return ALLELE_PAIRS[v % len(ALLELE_PAIRS)]
 
-# ── MAP ───────────────────────────────────────────────────────────────────────
-snp_map = []
-for v in range(N_AUTO_NORMAL + N_AUTO_HMISS + N_AUTO_MONO + N_AUTO_HET):
-    snp_map.append(f"22\trs_snp{v + 1:03d}\t0\t{(v + 1) * 10000}")
-for vx in range(N_CHRX):
-    snp_map.append(f"23\trs_chrx{vx + 1:03d}\t0\t{60000000 + (vx + 1) * 10000}")
-
-# ── Genotype matrix ───────────────────────────────────────────────────────────
-geno_matrix = [["0 0"] * N_VARIANTS_SNP for _ in range(N_SAMPLES_SNP)]
-
 # Index helpers
-s_idx = {s[1]: i for i, s in enumerate(SAMPLES_SNP)}
+s_idx  = {s[1]: i   for i, s in enumerate(SAMPLES_SNP)}
 s_role = {s[1]: s[4] for s in SAMPLES_SNP}
 s_sex  = {s[1]: s[2] for s in SAMPLES_SNP}
+
+# ── Build genotype matrix  [sample][variant] = (a1_code, a2_code) ─────────────
+# Internal codes per variant: 0=missing, 1=hom-major(A2), 2=het, 3=hom-minor(A1)
+# A1 = minor allele = ap(v)[1], A2 = major allele = ap(v)[0]
+# BED 2-bit encoding: 00=hom-A1, 01=missing, 10=het, 11=hom-A2
+CODE_MISSING  = 1   # 01
+CODE_HOM_A2   = 3   # 11  hom major
+CODE_HET      = 2   # 10
+CODE_HOM_A1   = 0   # 00  hom minor
+
+geno_matrix = [[CODE_MISSING] * N_VARIANTS_SNP for _ in range(N_SAMPLES_SNP)]
 
 # ── Step 1: Normal autosomal variants (v0–199) for all samples ────────────────
 for s in range(N_SAMPLES_SNP):
     for v in range(N_AUTO_NORMAL):
-        major, minor = ap(v)
         maf = 0.10 + (v % 7) * 0.05   # cycles: 0.10 0.15 0.20 0.25 0.30 0.35 0.40
         r = random.random()
         if r < (1 - maf) ** 2:
-            geno_matrix[s][v] = f"{major} {major}"
+            geno_matrix[s][v] = CODE_HOM_A2
         elif r < (1 - maf) ** 2 + 2 * maf * (1 - maf):
-            geno_matrix[s][v] = f"{major} {minor}"
+            geno_matrix[s][v] = CODE_HET
         else:
-            geno_matrix[s][v] = f"{minor} {minor}"
+            geno_matrix[s][v] = CODE_HOM_A1
 
 # ── Step 2: S02/S03 related pair — copy S02 autosomal genotypes to S03 ────────
 for v in range(N_AUTO_NORMAL):
     geno_matrix[s_idx["S03"]][v] = geno_matrix[s_idx["S02"]][v]
 
-# ── Step 3: S01 sample missingness — 25 % of autosomal calls set to missing ──
+# ── Step 3: S01 sample missingness — 25 % of autosomal calls set to missing ───
 miss_v = random.sample(range(N_AUTO_NORMAL), k=int(N_AUTO_NORMAL * 0.25))
 for v in miss_v:
-    geno_matrix[s_idx["S01"]][v] = "0 0"
+    geno_matrix[s_idx["S01"]][v] = CODE_MISSING
 
 # ── Step 4: S07 heterozygosity outlier — 70 % of calls forced het ─────────────
 het_v = random.sample(range(N_AUTO_NORMAL), k=int(N_AUTO_NORMAL * 0.70))
 for v in het_v:
-    major, minor = ap(v)
-    geno_matrix[s_idx["S07"]][v] = f"{major} {minor}"
+    geno_matrix[s_idx["S07"]][v] = CODE_HET
 
 # ── Step 5: High-missingness variant block (v200–209) ─────────────────────────
 for s in range(N_SAMPLES_SNP):
     for v in range(IDX_HMISS_START, IDX_HMISS_START + N_AUTO_HMISS):
-        major, _ = ap(v)
-        geno_matrix[s][v] = "0 0" if random.random() < 0.35 else f"{major} {major}"
+        geno_matrix[s][v] = CODE_MISSING if random.random() < 0.35 else CODE_HOM_A2
 
-# ── Step 6: Monomorphic variants (v210–212) — all hom-ref ─────────────────────
+# ── Step 6: Monomorphic variants (v210–212) — all hom-major ──────────────────
 for s in range(N_SAMPLES_SNP):
     for v in range(IDX_MONO_START, IDX_MONO_START + N_AUTO_MONO):
-        major, _ = ap(v)
-        geno_matrix[s][v] = f"{major} {major}"
+        geno_matrix[s][v] = CODE_HOM_A2
 
 # ── Step 7: All-het variants (v213–214) — extreme HWE departure ───────────────
 for s in range(N_SAMPLES_SNP):
     for v in range(IDX_HET_START, IDX_HET_START + N_AUTO_HET):
-        major, minor = ap(v)
-        geno_matrix[s][v] = f"{major} {minor}"
+        geno_matrix[s][v] = CODE_HET
 
 # ── Step 8: chrX variants (v215–234) — sex-specific + S09 discordance ─────────
-# Males:    hemizygous → code as hom in PED (no het calls)
+# Males:    hemizygous → hom only (no het)
 # Females:  HWE-like calls (het allowed)
 # S09:      declared female but all hom on X → sex check flags as discordant
 for s in range(N_SAMPLES_SNP):
@@ -286,70 +285,84 @@ for s in range(N_SAMPLES_SNP):
     role = s_role[iid]
     for vx in range(N_CHRX):
         v = IDX_CHRX_START + vx
-        major, minor = ap(v)
         if role == "sex_disc":
-            # S09: all hom on X despite being declared female → male X pattern
-            geno_matrix[s][v] = f"{major} {major}"
-        elif sex == 1:
-            # Males: only hom calls (hemizygous), some minor allele hom
-            geno_matrix[s][v] = f"{minor} {minor}" if random.random() < 0.30 \
-                                 else f"{major} {major}"
-        else:
-            # Normal females: HWE-like calls, MAF 0.30
+            geno_matrix[s][v] = CODE_HOM_A2
+        elif sex == 1:  # males: hemizygous, no het
+            geno_matrix[s][v] = CODE_HOM_A1 if random.random() < 0.30 else CODE_HOM_A2
+        else:           # females: HWE-like, MAF 0.30
             maf_x = 0.30
             r = random.random()
             if r < (1 - maf_x) ** 2:
-                geno_matrix[s][v] = f"{major} {major}"
+                geno_matrix[s][v] = CODE_HOM_A2
             elif r < (1 - maf_x) ** 2 + 2 * maf_x * (1 - maf_x):
-                geno_matrix[s][v] = f"{major} {minor}"
+                geno_matrix[s][v] = CODE_HET
             else:
-                geno_matrix[s][v] = f"{minor} {minor}"
+                geno_matrix[s][v] = CODE_HOM_A1
 
 # S01 also has missing calls on chrX (consistent 25 % missingness)
 for vx in range(N_CHRX):
     if random.random() < 0.25:
-        geno_matrix[s_idx["S01"]][IDX_CHRX_START + vx] = "0 0"
+        geno_matrix[s_idx["S01"]][IDX_CHRX_START + vx] = CODE_MISSING
 
-# ── Write PED ─────────────────────────────────────────────────────────────────
-ped_lines = []
-for s in range(N_SAMPLES_SNP):
-    fid, iid, sex, pheno, _ = SAMPLES_SNP[s]
-    genos = "\t".join(geno_matrix[s])
-    ped_lines.append(f"{fid}\t{iid}\t0\t0\t{sex}\t{pheno}\t{genos}")
-
+# ── Write FAM ─────────────────────────────────────────────────────────────────
 os.makedirs("test_data/snp_array", exist_ok=True)
-with open("test_data/snp_array/toy.ped", "w") as fh:
-    fh.write("\n".join(ped_lines) + "\n")
 
-with open("test_data/snp_array/toy.map", "w") as fh:
-    fh.write("\n".join(snp_map) + "\n")
+with open("test_data/snp_array/toy.fam", "w") as fh:
+    for fid, iid, sex, pheno, _ in SAMPLES_SNP:
+        fh.write(f"{fid}\t{iid}\t0\t0\t{sex}\t{pheno}\n")
 
+# ── Write BIM ─────────────────────────────────────────────────────────────────
+# Columns: CHR, SNP_ID, CM, BP, A1 (minor), A2 (major)
+with open("test_data/snp_array/toy.bim", "w") as fh:
+    for v in range(N_AUTO_NORMAL + N_AUTO_HMISS + N_AUTO_MONO + N_AUTO_HET):
+        major, minor = ap(v)
+        fh.write(f"22\trs_snp{v+1:03d}\t0\t{(v+1)*10000}\t{minor}\t{major}\n")
+    for vx in range(N_CHRX):
+        v = IDX_CHRX_START + vx
+        major, minor = ap(v)
+        fh.write(f"23\trs_chrx{vx+1:03d}\t0\t{60000000+(vx+1)*10000}\t{minor}\t{major}\n")
+
+# ── Write BED (SNP-major PLINK binary format) ─────────────────────────────────
+# Magic: 0x6c 0x1b 0x01  (SNP-major mode)
+# For each SNP: N_SAMPLES genotype codes packed 4-per-byte, LSB first
+# 2-bit code: 00=hom-A1, 01=missing, 10=het, 11=hom-A2
+bytes_per_snp = (N_SAMPLES_SNP + 3) // 4
+
+with open("test_data/snp_array/toy.bed", "wb") as bed:
+    bed.write(bytes([0x6c, 0x1b, 0x01]))
+    for v in range(N_VARIANTS_SNP):
+        for byte_start in range(0, N_SAMPLES_SNP, 4):
+            byte_val = 0
+            for bit_pos in range(4):
+                s = byte_start + bit_pos
+                code = geno_matrix[s][v] if s < N_SAMPLES_SNP else 0
+                byte_val |= (code << (bit_pos * 2))
+            bed.write(bytes([byte_val]))
+
+# ── Summary ───────────────────────────────────────────────────────────────────
 n_male   = sum(1 for _, _, sex, _, _   in SAMPLES_SNP if sex   == 1)
 n_female = sum(1 for _, _, sex, _, _   in SAMPLES_SNP if sex   == 2)
 n_case   = sum(1 for _, _, _, pheno, _ in SAMPLES_SNP if pheno == 2)
 n_ctrl   = sum(1 for _, _, _, pheno, _ in SAMPLES_SNP if pheno == 1)
 
-print(f"\n[OK] PED: test_data/snp_array/toy.ped  ({N_SAMPLES_SNP} samples, "
+print(f"\n[OK] test_data/snp_array/toy.fam  ({N_SAMPLES_SNP} samples, "
       f"{n_male}M/{n_female}F, {n_case} cases/{n_ctrl} controls)")
-print(f"[OK] MAP: test_data/snp_array/toy.map  ({N_VARIANTS_SNP} variants)")
+print(f"[OK] test_data/snp_array/toy.bim  ({N_VARIANTS_SNP} variants)")
+print(f"[OK] test_data/snp_array/toy.bed  "
+      f"({3 + N_VARIANTS_SNP * bytes_per_snp} bytes, SNP-major)")
 print(f"     Sample QC triggers:")
-print(f"       S01: {int(N_AUTO_NORMAL*0.25)}/{N_AUTO_NORMAL} autosomal calls missing"
+print(f"       S01: ~{int(N_AUTO_NORMAL*0.25)}/{N_AUTO_NORMAL} autosomal calls missing"
       f" → sample callrate failure (>2 %)")
 print(f"       S02+S03: identical autosomal genotypes → relatedness (PI_HAT ≈ 1.0)")
 print(f"       S07: {int(N_AUTO_NORMAL*0.70)}/{N_AUTO_NORMAL} calls forced het"
       f" → het rate outlier (>>3 SD)")
 print(f"       S09: PEDSEX=female, all chrX calls hom → sex check failure")
 print(f"     Variant QC triggers:")
-print(f"       v{IDX_HMISS_START+1}–{IDX_HMISS_START+N_AUTO_HMISS}: "
+print(f"       rs_snp{IDX_HMISS_START+1:03d}–rs_snp{IDX_HMISS_START+N_AUTO_HMISS:03d}: "
       f"~35 % missing → fail variant callrate (>2 %)")
-print(f"       v{IDX_MONO_START+1}–{IDX_MONO_START+N_AUTO_MONO}: "
+print(f"       rs_snp{IDX_MONO_START+1:03d}–rs_snp{IDX_MONO_START+N_AUTO_MONO:03d}: "
       f"monomorphic → fail MAF filter")
-print(f"       v{IDX_HET_START+1}–{IDX_HET_START+N_AUTO_HET}: "
+print(f"       rs_snp{IDX_HET_START+1:03d}–rs_snp{IDX_HET_START+N_AUTO_HET:03d}: "
       f"all-het → fail HWE test")
-print(f"       v{IDX_CHRX_START+1}–{IDX_CHRX_START+N_CHRX}: "
+print(f"       rs_chrx001–rs_chrx{N_CHRX:03d}: "
       f"chrX (chr23) — sex check input")
-
-print("""
-Delete stale PLINK binary files before re-running the smoke test:
-  rm -f test_data/snp_array/toy.bed test_data/snp_array/toy.bim test_data/snp_array/toy.fam
-""")

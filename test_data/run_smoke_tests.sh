@@ -107,37 +107,18 @@ EOF
     echo
 fi
 
-# ── Prepare SNP-array PLINK binary test data ───────────────────────────────────
-# Regenerate if binary files are missing OR older than the PED/MAP source.
-echo "Preparing SNP-array PLINK binary test data..."
-_need_regen=false
-if [ ! -f "test_data/snp_array/toy.bed" ] || \
-   [ ! -f "test_data/snp_array/toy.bim" ] || \
-   [ ! -f "test_data/snp_array/toy.fam" ]; then
-    _need_regen=true
-elif [ "test_data/snp_array/toy.ped" -nt "test_data/snp_array/toy.bed" ] || \
-     [ "test_data/snp_array/toy.map" -nt "test_data/snp_array/toy.bed" ]; then
-    echo "PED/MAP newer than binary files — regenerating."
-    _need_regen=true
-else
-    echo "SNP-array binary files already exist and are up to date."
-fi
-if [[ "$_need_regen" == "true" ]] && [[ "$PROFILE" == *"docker"* ]]; then
-    docker run --rm \
-        -v "${PWD}/test_data/snp_array:/data" \
-        "${IMAGE}" \
-        bash -lc "cd /data && plink --file toy --make-bed --out toy --allow-no-sex"
-elif [[ "$_need_regen" == "true" ]]; then
-    # manual_paths / singularity / conda: use plink from PATH
-    if ! command -v plink >/dev/null 2>&1; then
-        echo "ERROR: plink not found on PATH. Run setup_hpc_manual.sh and export PATH first."
+# ── Verify SNP-array PLINK binary test data ────────────────────────────────────
+# Pre-generated files are committed to the repository — no conversion needed.
+# To regenerate: python3 test_data/generate_test_data.py
+echo "Checking SNP-array PLINK binary test data..."
+for f in test_data/snp_array/toy.bed test_data/snp_array/toy.bim test_data/snp_array/toy.fam; do
+    if [ ! -f "$f" ]; then
+        echo "ERROR: missing $f"
+        echo "Regenerate with:  python3 test_data/generate_test_data.py"
         exit 1
     fi
-    plink --file test_data/snp_array/toy \
-          --make-bed \
-          --out test_data/snp_array/toy \
-          --allow-no-sex
-fi
+done
+echo "SNP-array binary files present."
 echo
 
 # ── WGS/WES VCF smoke test ────────────────────────────────────────────────────
