@@ -122,9 +122,9 @@ PYEOF
         Rscript - << 'RSCRIPT'
 library(ggplot2)
 df <- read.table("heterozygosity.het", header=TRUE)
-df$het_rate <- (df$N.NM. - df$O.HOM.) / df$N.NM.
-mean_het <- mean(df$het_rate, na.rm=TRUE)
-sd_het   <- sd(df$het_rate, na.rm=TRUE)
+df\$het_rate <- (df\$N.NM. - df\$O.HOM.) / df\$N.NM.
+mean_het <- mean(df\$het_rate, na.rm=TRUE)
+sd_het   <- sd(df\$het_rate, na.rm=TRUE)
 lo <- mean_het - ${params.heterozygosity_sd} * sd_het
 hi <- mean_het + ${params.heterozygosity_sd} * sd_het
 p <- ggplot(df, aes(x=het_rate)) +
@@ -153,13 +153,13 @@ RSCRIPT
 library(ggplot2)
 het   <- read.table("heterozygosity.het", header=TRUE)
 imiss <- read.table("miss_for_plot.imiss", header=TRUE)
-het$het_rate    <- (het$N.NM. - het$O.HOM.) / het$N.NM.
-imiss$logF_MISS <- log10(pmax(imiss$F_MISS, 1e-5))
+het\$het_rate    <- (het\$N.NM. - het\$O.HOM.) / het\$N.NM.
+imiss\$logF_MISS <- log10(pmax(imiss\$F_MISS, 1e-5))
 merged <- merge(het[, c("FID","IID","het_rate")],
                 imiss[, c("FID","IID","logF_MISS")],
                 by=c("FID","IID"))
-mean_het <- mean(merged$het_rate)
-sd_het   <- sd(merged$het_rate)
+mean_het <- mean(merged\$het_rate)
+sd_het   <- sd(merged\$het_rate)
 lo <- mean_het - ${params.heterozygosity_sd} * sd_het
 hi <- mean_het + ${params.heterozygosity_sd} * sd_het
 
@@ -185,7 +185,7 @@ if (n_samples > 5000) {
         cutoffs
 } else {
     # Small/medium cohort: density-coloured scatter (matches training practical)
-    dens <- densCols(merged$logF_MISS, merged$het_rate, nbin=256,
+    dens <- densCols(merged\$logF_MISS, merged\$het_rate, nbin=256,
                      colramp=colorRampPalette(c("grey70","steelblue","orange","red")))
     p <- ggplot(merged, aes(x=logF_MISS, y=het_rate)) +
         geom_point(colour=dens, size=1.2, alpha=0.9) +

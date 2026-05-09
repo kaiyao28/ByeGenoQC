@@ -251,8 +251,8 @@ PYEOF
         Rscript - << 'RSCRIPT'
 library(ggplot2)
 df <- read.table("imputation_r2_scores.txt", header=TRUE, sep="\t")
-df$R2 <- suppressWarnings(as.numeric(df$R2))
-df <- df[!is.na(df$R2), ]
+df\$R2 <- suppressWarnings(as.numeric(df\$R2))
+df <- df[!is.na(df\$R2), ]
 if (nrow(df) == 0) quit(save="no")
 p <- ggplot(df, aes(x=R2)) +
     geom_histogram(bins=100, fill="steelblue", alpha=0.8) +

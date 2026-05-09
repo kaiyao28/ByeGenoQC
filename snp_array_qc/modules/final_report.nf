@@ -461,8 +461,8 @@ if (!is.null(batch) && nrow(batch) > 0) {
                      gp=grid::gpar(col="grey60"))
     for (i in seq_len(nrow(batch))) {
         y <- y0 - 0.05 - (i - 1) * 0.055
-        vals <- c(batch$BATCH[i], batch$N_SAMPLES[i], batch$N_REMOVED[i],
-                  batch$N_PASS[i], paste0(batch$PASS_RATE_PCT[i], "%"))
+        vals <- c(batch\$BATCH[i], batch\$N_SAMPLES[i], batch\$N_REMOVED[i],
+                  batch\$N_PASS[i], paste0(batch\$PASS_RATE_PCT[i], "%"))
         for (j in seq_along(vals))
             grid::grid.text(vals[j], x=xs[j], y=y, just="left",
                             gp=grid::gpar(fontsize=10))

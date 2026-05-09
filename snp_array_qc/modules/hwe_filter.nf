@@ -153,9 +153,9 @@ EOF
 library(ggplot2)
 df <- read.table("hwe_stats.hwe", header=TRUE)
 # Plot autosome distribution using the same test column used for filtering
-test_col <- if (any(df$TEST == "UNAFF")) "UNAFF" else "ALL"
-df_auto <- df[df$TEST == test_col & df$CHR < 23, ]
-df_auto$neglog10p <- -log10(pmax(df_auto$P, 1e-300))
+test_col <- if (any(df\$TEST == "UNAFF")) "UNAFF" else "ALL"
+df_auto <- df[df\$TEST == test_col & df\$CHR < 23, ]
+df_auto\$neglog10p <- -log10(pmax(df_auto\$P, 1e-300))
 p <- ggplot(df_auto, aes(x=neglog10p)) +
     geom_histogram(bins=80, fill="steelblue", alpha=0.8) +
     geom_vline(xintercept=-log10(${params.hwe_p}), linetype="dashed", colour="red") +

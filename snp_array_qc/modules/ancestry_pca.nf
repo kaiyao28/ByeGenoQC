@@ -247,7 +247,7 @@ p <- ggplot(df, aes(x=PC)) +
     geom_line(aes(y=CPVE), colour="darkred", linewidth=0.8) +
     geom_point(aes(y=CPVE), colour="darkred", size=1.5) +
     geom_vline(xintercept=n_cov + 0.5, linetype="dashed", colour="grey40") +
-    annotate("text", x=n_cov + 0.7, y=max(df$CPVE) * 0.5,
+    annotate("text", x=n_cov + 0.7, y=max(df\$CPVE) * 0.5,
              label=paste0("n_pcs_covariates\n= ", n_cov),
              hjust=0, size=3, colour="grey40") +
     scale_x_continuous(breaks=seq_len(nrow(df))) +
@@ -271,7 +271,7 @@ colnames(pcs)[1:2] <- c("FID","IID")
 colnames(pcs)[3:ncol(pcs)] <- paste0("PC", seq_len(ncol(pcs)-2))
 
 study_fam <- read.table("${fam}", header=FALSE)
-study_key <- paste(study_fam$V1, study_fam$V2)
+study_key <- paste(study_fam\$V1, study_fam\$V2)
 
 hapmap_file <- "${hapmap_path}"
 ref_merged  <- file.exists("merged_study_ref.fam")
@@ -280,8 +280,8 @@ if (ref_merged && nchar(hapmap_file) > 0 && file.exists(hapmap_file)) {
     # Best case: colour by HapMap population + mark study samples
     hapmap <- read.table(hapmap_file, header=TRUE)
     pcs <- merge(pcs, hapmap[, c("IID","population")], by="IID", all.x=TRUE)
-    pcs$group <- ifelse(paste(pcs$FID, pcs$IID) %in% study_key, "Study",
-                        ifelse(!is.na(pcs$population), pcs$population, "Reference"))
+    pcs\$group <- ifelse(paste(pcs\$FID, pcs\$IID) %in% study_key, "Study",
+                        ifelse(!is.na(pcs\$population), pcs\$population, "Reference"))
     pop_colours <- c(
         "Study"="steelblue",
         "CEU"="#E41A1C", "CHB"="#FF7F00", "JPT"="#984EA3",
@@ -289,12 +289,12 @@ if (ref_merged && nchar(hapmap_file) > 0 && file.exists(hapmap_file)) {
         "LWK"="#999999", "MEX"="#377EB8", "MKK"="#FFFF33",
         "TSI"="#00CED1", "CHD"="#8B4513"
     )
-    colours  <- pop_colours[names(pop_colours) %in% unique(pcs$group)]
+    colours  <- pop_colours[names(pop_colours) %in% unique(pcs\$group)]
     subtitle <- "Coloured by HapMap reference population; blue = study samples"
 
 } else if (ref_merged) {
     # Reference merged but no population info — study vs reference
-    pcs$group <- ifelse(paste(pcs$FID, pcs$IID) %in% study_key, "Study", "Reference")
+    pcs\$group <- ifelse(paste(pcs\$FID, pcs\$IID) %in% study_key, "Study", "Reference")
     colours   <- c("Study"="steelblue", "Reference"="grey60")
     subtitle  <- "Grey: reference panel samples"
 
@@ -304,20 +304,20 @@ if (ref_merged && nchar(hapmap_file) > 0 && file.exists(hapmap_file)) {
         read.table("ancestry_outliers.txt", header=FALSE, col.names=c("FID","IID")),
         error=function(e) data.frame(FID=character(0), IID=character(0))
     )
-    pcs$group <- "Included"
+    pcs\$group <- "Included"
     if (nrow(outliers) > 0) {
-        key <- paste(outliers$FID, outliers$IID)
-        pcs$group[paste(pcs$FID, pcs$IID) %in% key] <- "Outlier"
+        key <- paste(outliers\$FID, outliers\$IID)
+        pcs\$group[paste(pcs\$FID, pcs\$IID) %in% key] <- "Outlier"
     }
     colours  <- c("Included"="steelblue", "Outlier"="red")
     subtitle <- paste0("Outlier threshold: ±${params.pca_outlier_sd} SD on any PC")
 }
 
 # Draw study samples on top so they're not hidden under reference points
-pcs <- pcs[order(pcs$group != "Study"), ]
+pcs <- pcs[order(pcs\$group != "Study"), ]
 
 p <- ggplot(pcs, aes(x=PC1, y=PC2, colour=group)) +
-    geom_point(alpha=0.6, size=ifelse(pcs$group == "Study", 1.2, 0.7)) +
+    geom_point(alpha=0.6, size=ifelse(pcs\$group == "Study", 1.2, 0.7)) +
     scale_colour_manual(values=colours) +
     labs(title="Ancestry PCA — PC1 vs PC2", subtitle=subtitle, colour="Group") +
     theme_classic() +

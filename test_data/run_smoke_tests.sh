@@ -25,14 +25,14 @@ while [[ $# -gt 0 ]]; do
         --profile) PROFILE="$2"; shift 2 ;;
         --test)    TEST="$2";    shift 2 ;;
         *) echo "Unknown argument: $1"
-           echo "Usage: bash run_smoke_tests.sh [--profile PROFILE] [--test snp_array|wgs_wes]"
+           echo "Usage: bash run_smoke_tests.sh [--profile PROFILE] [--test snp_array|snp_full|wgs_wes]"
            exit 1 ;;
     esac
 done
 
 echo "Genetic QC smoke tests"
 echo "Profile : ${PROFILE}"
-echo "Running : ${TEST:-snp_array + wgs_wes}"
+echo "Running : ${TEST:-snp_array + snp_full + wgs_wes}"
 if [[ "$PROFILE" == *"docker"* ]]; then
     echo "Image   : ${IMAGE}"
 fi
@@ -108,17 +108,26 @@ EOF
 fi
 
 # ── Prepare SNP-array PLINK binary test data ───────────────────────────────────
+# Regenerate if binary files are missing OR older than the PED/MAP source.
 echo "Preparing SNP-array PLINK binary test data..."
-if [ -f "test_data/snp_array/toy.bed" ] && \
-   [ -f "test_data/snp_array/toy.bim" ] && \
-   [ -f "test_data/snp_array/toy.fam" ]; then
-    echo "SNP-array binary files already exist."
-elif [[ "$PROFILE" == *"docker"* ]]; then
+_need_regen=false
+if [ ! -f "test_data/snp_array/toy.bed" ] || \
+   [ ! -f "test_data/snp_array/toy.bim" ] || \
+   [ ! -f "test_data/snp_array/toy.fam" ]; then
+    _need_regen=true
+elif [ "test_data/snp_array/toy.ped" -nt "test_data/snp_array/toy.bed" ] || \
+     [ "test_data/snp_array/toy.map" -nt "test_data/snp_array/toy.bed" ]; then
+    echo "PED/MAP newer than binary files — regenerating."
+    _need_regen=true
+else
+    echo "SNP-array binary files already exist and are up to date."
+fi
+if [[ "$_need_regen" == "true" ]] && [[ "$PROFILE" == *"docker"* ]]; then
     docker run --rm \
         -v "${PWD}/test_data/snp_array:/data" \
         "${IMAGE}" \
         bash -lc "cd /data && plink --file toy --make-bed --out toy --allow-no-sex"
-else
+elif [[ "$_need_regen" == "true" ]]; then
     # manual_paths / singularity / conda: use plink from PATH
     if ! command -v plink >/dev/null 2>&1; then
         echo "ERROR: plink not found on PATH. Run setup_hpc_manual.sh and export PATH first."
@@ -153,7 +162,7 @@ if [[ -z "$TEST" || "$TEST" == "wgs_wes" ]]; then
     echo
 fi
 
-# ── SNP-array smoke test ──────────────────────────────────────────────────────
+# ── SNP-array variant-only smoke test ────────────────────────────────────────
 if [[ -z "$TEST" || "$TEST" == "snp_array" ]]; then
     echo "Running SNP-array variant-only smoke test..."
     nextflow run snp_array_qc/main.nf \
@@ -170,6 +179,30 @@ if [[ -z "$TEST" || "$TEST" == "snp_array" ]]; then
     echo
 fi
 
+# ── SNP-array full QC smoke test (sample + variant QC) ───────────────────────
+# Tests all sample-level modules: callrate, sex check, heterozygosity,
+# relatedness, and ancestry PCA — each module has a designed QC trigger in
+# the toy data (S01=missingness, S02/S03=related, S07=het outlier,
+# S09=sex discordant).
+# n_pcs=5 and n_pcs_covariates=5 avoid PLINK PCA warnings with 15 samples.
+if [[ -z "$TEST" || "$TEST" == "snp_full" ]]; then
+    echo "Running SNP-array full QC smoke test (sample + variant)..."
+    nextflow run snp_array_qc/main.nf \
+      --bfile test_data/snp_array/toy \
+      --run_variant_qc true \
+      --run_sample_qc true \
+      --run_final_report true \
+      --n_pcs 5 \
+      --n_pcs_covariates 5 \
+      --outdir results/test_snp_full \
+      --docker_image "${IMAGE}" \
+      -profile "${PROFILE}" \
+      -ansi-log false \
+      -resume
+    echo
+fi
+
 echo "Smoke tests finished."
-[[ -z "$TEST" || "$TEST" == "wgs_wes"   ]] && echo "  results/test_vcf_variant_only"
-[[ -z "$TEST" || "$TEST" == "snp_array" ]] && echo "  results/test_snp_variant_only"
+[[ -z "$TEST" || "$TEST" == "wgs_wes"    ]] && echo "  results/test_vcf_variant_only"
+[[ -z "$TEST" || "$TEST" == "snp_array"  ]] && echo "  results/test_snp_variant_only"
+[[ -z "$TEST" || "$TEST" == "snp_full"   ]] && echo "  results/test_snp_full"

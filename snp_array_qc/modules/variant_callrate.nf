@@ -97,7 +97,7 @@ EOF
             Rscript - << 'RSCRIPT'
 library(ggplot2)
 df <- read.table("cc_miss.missing", header=TRUE)
-df$neglog10p <- -log10(pmax(df$P, 1e-300))
+df\$neglog10p <- -log10(pmax(df\$P, 1e-300))
 p <- ggplot(df, aes(x=neglog10p)) +
     geom_histogram(bins=80, fill="steelblue", alpha=0.8) +
     geom_vline(xintercept=-log10(${params.cc_miss_p}), linetype="dashed", colour="red") +
