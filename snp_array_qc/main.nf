@@ -377,6 +377,9 @@ workflow {
     //  PHASE 4 — Final report
     // ════════════════════════════════════════════════════════════════════════
     if (params.run_final_report) {
+        ch_report_rmd = Channel.value(
+            file("${projectDir}/snp_array_qc/scripts/snp_array_qc_report.Rmd")
+        )
         FINAL_REPORT(
             ch_final,
             ch_qc_summaries.collect(),
@@ -384,7 +387,8 @@ workflow {
             ch_all_excluded_variants,
             ch_qc_plots.collect().ifEmpty([]),
             ch_qc_data.collect().ifEmpty([]),
-            Channel.value(scope)
+            Channel.value(scope),
+            ch_report_rmd
         )
     }
 }
@@ -397,7 +401,7 @@ workflow.onComplete {
     SNP Array QC ${status}
     ================================================================
     Cleaned data     : ${outdir}/cleaned_data/
-    Final report     : ${outdir}/final_report.html
+    Final report     : ${outdir}/qc_report.pdf
     PCA covariates   : ${outdir}/pca_covariates.txt
     Excluded samples : ${outdir}/exclusion_lists/all_excluded_samples.txt
     Excluded variants: ${outdir}/exclusion_lists/all_excluded_variants.txt

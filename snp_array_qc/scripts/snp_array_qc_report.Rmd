@@ -1,0 +1,334 @@
+---
+title: "SNP Array QC Report"
+date: "`r format(Sys.time(), '%Y-%m-%d %H:%M')`"
+output:
+  pdf_document:
+    toc: true
+    toc_depth: 2
+    number_sections: true
+    fig_caption: true
+    keep_tex: false
+geometry: "margin=2cm"
+header-includes:
+  - \usepackage{booktabs}
+  - \usepackage{longtable}
+  - \usepackage{float}
+  - \floatplacement{figure}{H}
+  - \usepackage{caption}
+  - \captionsetup{font=small}
+---
+
+```{r setup, include=FALSE}
+# Read pipeline-specific values written by the Nextflow process
+source("_params.R")
+
+library(knitr)
+opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,
+               fig.align = "center", out.width = "95%")
+
+# ── Helpers ────────────────────────────────────────────────────────────────────
+count_nonempty <- function(f) {
+  if (!file.exists(f)) return(0L)
+  sum(nchar(trimws(readLines(f, warn = FALSE))) > 0L)
+}
+
+safe_read <- function(f, ...) {
+  if (!file.exists(f)) return(NULL)
+  tryCatch(read.table(f, ...), error = function(e) NULL)
+}
+
+read_id_pairs <- function(f) {
+  if (!file.exists(f)) return(character(0))
+  lines <- grep("\\S", readLines(f, warn = FALSE), value = TRUE)
+  unique(sapply(strsplit(lines, "\\s+"), function(x) paste(x[1], x[2])))
+}
+
+null_display <- function(x, fallback = "not set") {
+  if (is.null(x) || identical(x, "null") || identical(x, NA_character_)) fallback
+  else as.character(x)
+}
+
+# ── Final dataset counts ───────────────────────────────────────────────────────
+final_samples  <- count_nonempty(final_fam)
+final_variants <- count_nonempty(final_bim)
+excl_samples   <- count_nonempty("all_excluded_samples.txt")
+excl_variants  <- count_nonempty("all_excluded_variants.txt")
+```
+
+```{r attrition-data, include=FALSE}
+# ── Parse all *summary*.txt files ─────────────────────────────────────────────
+variant_steps <- c("duplicate_variant_check", "variant_callrate",
+                   "hwe_filter", "maf_filter", "imputation_filter", "cc_miss_test")
+sample_steps  <- c("sample_callrate", "sex_check", "heterozygosity",
+                   "relatedness", "ancestry_pca")
+
+atr_rows <- list()
+for (f in sort(list.files(".", pattern = ".*summary.*\\.txt$"))) {
+  lines <- readLines(f, warn = FALSE)
+  data  <- list()
+  for (line in lines) {
+    line <- trimws(line)
+    if (grepl("=", line, fixed = TRUE)) {
+      kv <- strsplit(line, "=", fixed = TRUE)[[1]]
+      data[[trimws(kv[1])]] <- trimws(paste(kv[-1], collapse = "="))
+    }
+  }
+  step  <- if (!is.null(data[["step"]])) data[["step"]] else sub("\\.txt$", "", f)
+  phase <- if (step %in% variant_steps) "variant"
+           else if (step %in% sample_steps) "sample"
+           else "input"
+  for (key in setdiff(names(data), c("step", "file"))) {
+    atr_rows[[length(atr_rows) + 1]] <-
+      data.frame(Phase = phase, Step = step, Metric = key,
+                 Value = data[[key]], stringsAsFactors = FALSE)
+  }
+}
+
+atr_rows[[length(atr_rows) + 1]] <-
+  data.frame(Phase="final", Step="cleaned_data", Metric="n_samples",
+             Value=as.character(final_samples), stringsAsFactors=FALSE)
+atr_rows[[length(atr_rows) + 1]] <-
+  data.frame(Phase="final", Step="cleaned_data", Metric="n_variants",
+             Value=as.character(final_variants), stringsAsFactors=FALSE)
+atr_rows[[length(atr_rows) + 1]] <-
+  data.frame(Phase="final", Step="exclusions", Metric="n_excluded_samples",
+             Value=as.character(excl_samples), stringsAsFactors=FALSE)
+atr_rows[[length(atr_rows) + 1]] <-
+  data.frame(Phase="final", Step="exclusions", Metric="n_excluded_variants",
+             Value=as.character(excl_variants), stringsAsFactors=FALSE)
+
+atr_df <- do.call(rbind, atr_rows)
+
+# Write attrition TSV
+write.table(atr_df, "qc_attrition_table.tsv",
+            sep = "\t", quote = FALSE, row.names = FALSE,
+            col.names = c("phase", "step", "metric", "value"))
+```
+
+```{r thresholds-data, include=FALSE}
+# ── Thresholds table ───────────────────────────────────────────────────────────
+thresh_list <- list(
+  chroms               = chroms,
+  sample_qc_scope      = qc_scope,
+  run_variant_qc       = run_variant_qc,
+  run_sample_qc        = run_sample_qc,
+  sample_missingness   = sample_missingness,
+  variant_missingness  = variant_missingness,
+  cc_miss_p            = null_display(cc_miss_p),
+  hwe_p_autosomes      = hwe_p,
+  hwe_p_chrx           = null_display(hwe_p_chrx, "same as autosomes"),
+  maf                  = maf,
+  heterozygosity_sd    = heterozygosity_sd,
+  relatedness_pi_hat   = relatedness_pi_hat,
+  sex_f_lower_female   = sex_f_female,
+  sex_f_upper_male     = sex_f_male,
+  pca_outlier_sd       = pca_outlier_sd,
+  ld_regions           = null_display(ld_regions, "not provided"),
+  reference_panel      = null_display(reference_panel, "not provided")
+)
+thresh_df <- data.frame(
+  Parameter = names(thresh_list),
+  Value     = unlist(lapply(thresh_list, as.character)),
+  stringsAsFactors = FALSE, row.names = NULL
+)
+write.table(thresh_df, "qc_thresholds.tsv",
+            sep = "\t", quote = FALSE, row.names = FALSE)
+```
+
+```{r persample-data, include=FALSE}
+# ── Per-sample QC table (only when sample QC modules have run) ─────────────────
+imiss_df <- safe_read("sample_missingness.imiss", header = TRUE)
+het_df   <- safe_read("heterozygosity.het",       header = TRUE)
+sex_df   <- safe_read("sex_check.sexcheck",       header = TRUE)
+
+smiss_ids   <- read_id_pairs("sample_callrate_removed.txt")
+het_ids     <- read_id_pairs("heterozygosity_outliers.txt")
+sex_ids     <- read_id_pairs("sex_discordant.txt")
+related_ids <- read_id_pairs("relatedness_remove.txt")
+anc_ids     <- read_id_pairs("ancestry_outliers.txt")
+
+sample_qc_run <- !is.null(imiss_df) || !is.null(het_df) || !is.null(sex_df)
+
+ps_df <- NULL
+if (sample_qc_run) {
+  all_keys <- unique(c(
+    if (!is.null(imiss_df)) paste(imiss_df$FID, imiss_df$IID) else NULL,
+    if (!is.null(het_df))   paste(het_df$FID,   het_df$IID)   else NULL,
+    if (!is.null(sex_df))   paste(sex_df$FID,   sex_df$IID)   else NULL
+  ))
+
+  rows <- lapply(all_keys, function(key) {
+    parts <- strsplit(key, " ")[[1]]; fid <- parts[1]; iid <- parts[2]
+
+    f_miss <- if (!is.null(imiss_df)) {
+      r <- imiss_df[imiss_df$FID == fid & imiss_df$IID == iid, "F_MISS"]
+      if (length(r) > 0) sprintf("%.4f", r[1]) else NA_character_
+    } else NA_character_
+
+    het_r <- if (!is.null(het_df)) {
+      r <- het_df[het_df$FID == fid & het_df$IID == iid, ]
+      if (nrow(r) > 0) sprintf("%.4f", (r$N.NM.[1] - r$O.HOM.[1]) / r$N.NM.[1]) else NA_character_
+    } else NA_character_
+
+    x_f <- pedsex <- snpsex <- sex_st <- NA_character_
+    if (!is.null(sex_df)) {
+      sr <- sex_df[sex_df$FID == fid & sex_df$IID == iid, ]
+      if (nrow(sr) > 0) {
+        pedsex <- as.character(sr$PEDSEX[1])
+        snpsex <- as.character(sr$SNPSEX[1])
+        x_f    <- if ("F" %in% names(sr)) sprintf("%.3f", sr$F[1]) else NA_character_
+        sex_st <- as.character(sr$STATUS[1])
+      }
+    }
+
+    flag <- function(ids) if (key %in% ids) "YES" else "NO"
+    sm <- flag(smiss_ids); ho <- flag(het_ids); sd <- flag(sex_ids)
+    rr <- flag(related_ids); ao <- flag(anc_ids)
+    qf <- if (any(c(sm, ho, sd, rr, ao) == "YES")) "YES" else "NO"
+    batch <- {
+      p <- strsplit(fid, "-")[[1]]
+      if (length(p) >= 3) paste(p[1:2], collapse="-") else fid
+    }
+    data.frame(FID=fid, IID=iid, F_MISS=f_miss, HET_RATE=het_r, X_F=x_f,
+               PEDSEX=pedsex, SNPSEX=snpsex, SEX_STATUS=sex_st,
+               SMISS=sm, HET_OUT=ho, SEX_DISC=sd, RELATED=rr,
+               ANC_OUT=ao, QC_FAIL=qf, BATCH=batch,
+               stringsAsFactors=FALSE)
+  })
+  ps_df <- do.call(rbind, rows)
+
+  write.table(ps_df, "qc_per_sample.tsv",
+              sep = "\t", quote = FALSE, row.names = FALSE)
+  cat("Per-sample table:", nrow(ps_df), "samples\n")
+
+  # Per-batch summary
+  batch_n    <- table(ps_df$BATCH)
+  batch_fail <- tapply(ps_df$QC_FAIL == "YES", ps_df$BATCH, sum)
+  batch_df <- data.frame(
+    Batch   = names(batch_n),
+    N       = as.integer(batch_n),
+    Removed = as.integer(batch_fail[names(batch_n)]),
+    stringsAsFactors = FALSE
+  )
+  batch_df$Pass     <- batch_df$N - batch_df$Removed
+  batch_df$Pass_pct <- sprintf("%.1f%%", batch_df$Pass / batch_df$N * 100)
+  write.table(batch_df, "qc_per_batch.tsv",
+              sep = "\t", quote = FALSE, row.names = FALSE)
+} else {
+  # Still write empty TSVs so Nextflow outputs are satisfied
+  writeLines("FID\tIID\tF_MISS\tHET_RATE\tX_F\tPEDSEX\tSNPSEX\tSEX_STATUS\tSMISS\tHET_OUT\tSEX_DISC\tRELATED\tANC_OUT\tQC_FAIL\tBATCH",
+             "qc_per_sample.tsv")
+  writeLines("Batch\tN\tRemoved\tPass\tPass_pct", "qc_per_batch.tsv")
+  cat("Sample QC not run — per-sample table empty\n")
+}
+```
+
+---
+
+**Dataset:** `r dataset_id` $\quad$ **Chromosomes:** `r chroms` $\quad$ **Sample QC scope:** `r qc_scope`
+
+`r if (qc_scope == "provisional") "\\textbf{\\color{red}{Warning: provisional scope — not all autosomes analysed. Results are indicative only.}}" else ""`
+
+# Summary
+
+```{r summary-table}
+kable(
+  data.frame(
+    Metric = c("Final samples", "Final variants",
+               "Excluded samples", "Excluded variants"),
+    Value  = c(final_samples, final_variants, excl_samples, excl_variants)
+  ),
+  booktabs = TRUE,
+  caption  = "Dataset counts after all QC filters."
+)
+```
+
+# QC Attrition
+
+```{r attrition-table}
+kable(
+  atr_df,
+  booktabs    = TRUE,
+  longtable   = TRUE,
+  col.names   = c("Phase", "Step", "Metric", "Value"),
+  caption     = "QC step-by-step variant and sample counts."
+)
+```
+
+# Thresholds and Run Settings
+
+```{r thresholds-table}
+kable(
+  thresh_df,
+  booktabs  = TRUE,
+  longtable = TRUE,
+  caption   = "Pipeline parameters used for this run."
+)
+```
+
+```{r batch-section, results='asis'}
+if (sample_qc_run && nrow(batch_df) > 0) {
+  cat("\n# Per-batch QC Summary\n\n")
+}
+```
+
+```{r batch-table, eval=sample_qc_run}
+if (nrow(batch_df) > 0) {
+  kable(
+    batch_df,
+    booktabs  = TRUE,
+    col.names = c("Batch", "Samples", "Removed", "Pass", "Pass %"),
+    caption   = "Per-batch sample counts and removal rates."
+  )
+}
+```
+
+```{r persample-section, results='asis'}
+if (sample_qc_run && nrow(ps_df) > 0) {
+  cat("\n# Per-sample QC Table\n\n")
+  cat("Flag columns: YES = failed that QC step. QC\\_FAIL = failed any step.\n\n")
+}
+```
+
+```{r persample-table, eval=sample_qc_run}
+if (!is.null(ps_df) && nrow(ps_df) > 0) {
+  kable(
+    ps_df,
+    booktabs  = TRUE,
+    longtable = TRUE,
+    digits    = 4,
+    caption   = "Per-sample QC flags across all modules.",
+    col.names = c("FID","IID","F\\_MISS","HET","X\\_F",
+                  "PEDSEX","SNPSEX","SEX\\_ST",
+                  "SMISS","HET\\_OUT","SEX\\_DISC","RELATED","ANC\\_OUT",
+                  "QC\\_FAIL","BATCH")
+  )
+}
+```
+
+# QC Plots
+
+```{r plots, results='asis', fig.cap=""}
+plot_order <- c("miss_het_scatter","heterozygosity_plot","sex_check_F_stat",
+                "vmiss_plot","cc_miss_plot","maf_plot","hwe_plot",
+                "imputation_r2_plot","relatedness_pi_hat","pca_scree","pca_plot")
+
+sort_key <- function(f) {
+  n <- sub("\\.png$", "", basename(f))
+  i <- match(n, plot_order)
+  if (is.na(i)) length(plot_order) + 1L else i
+}
+
+pngs <- list.files(".", pattern = "\\.png$", full.names = FALSE)
+pngs <- pngs[order(sapply(pngs, sort_key))]
+
+for (f in pngs) {
+  label <- tools::toTitleCase(gsub("_", " ", sub("\\.png$", "", basename(f))))
+  cat(sprintf("\n## %s\n\n", label))
+  # knitr::include_graphics needs the path relative to the Rmd location
+  print(knitr::include_graphics(f))
+  cat("\n\n")
+}
+
+if (length(pngs) == 0) cat("_No QC plots were produced._\n")
+```

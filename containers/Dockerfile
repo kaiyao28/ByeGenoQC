@@ -29,7 +29,7 @@ FROM condaforge/mambaforge:23.11.0-0
 
 LABEL maintainer="genetic_qc_pipeline" \
       description="All tools for SNP array and WGS/WES genetic QC" \
-      version="1.0"
+      version="1.1"
 
 # Prevent interactive prompts during package install
 ARG DEBIAN_FRONTEND=noninteractive
@@ -94,7 +94,20 @@ RUN mamba install -y \
         "r-dplyr=1.1" \
         "r-readr=2.1" \
         "r-scales=1.3" \
+        "r-rmarkdown" \
+        "r-knitr" \
+        "pandoc" \
     && mamba clean -a -y
+
+# ── TinyTeX (lightweight LaTeX for PDF report knitting) ───────────────────────
+# install_tinytex() downloads ~200 MB; LaTeX packages are added after.
+# The symlink exposes pdflatex on PATH for diagnostics; rmarkdown finds it
+# automatically through the tinytex R package without needing the symlink.
+RUN Rscript -e "tinytex::install_tinytex(force=TRUE)" && \
+    Rscript -e "tinytex::tlmgr_install(c( \
+      'booktabs','longtable','float','caption', \
+      'geometry','xcolor','collection-fontsrecommended'))" && \
+    ln -sf /root/.TinyTeX/bin/$(uname -m)-linux/pdflatex /usr/local/bin/pdflatex
 
 # ── Verify key tool installations ─────────────────────────────────────────────
 RUN plink   --version 2>&1 | head -1 && \

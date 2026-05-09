@@ -54,10 +54,14 @@ dependencies:
   - matplotlib>=3.6
   - seaborn>=0.12
 
-  # ── R (optional — used for QC plots) ─────────────────────────────────────────
+  # ── R (QC plots + PDF report) ─────────────────────────────────────────────────
   - r-base>=4.2
   - r-ggplot2>=3.4
   - r-data.table>=1.14
   - r-dplyr>=1.1
   - r-readr>=2.1
   - r-scales>=1.2
+  - r-rmarkdown>=2.20   # R Markdown PDF report
+  - r-knitr>=1.40       # knitting engine for the Rmd
+  - r-tinytex>=0.45     # lightweight LaTeX for PDF output
+  - pandoc>=2.17        # required by rmarkdown for rendering
