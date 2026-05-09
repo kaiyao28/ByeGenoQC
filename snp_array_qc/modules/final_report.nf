@@ -237,11 +237,11 @@ if batch_rows_data:
         f"<td>{r[3]}</td><td>{r[4]}%</td></tr>"
         for r in batch_rows_data
     )
-    batch_html = f"""<h2>Per-batch QC Summary</h2>
+    batch_html = f'''<h2>Per-batch QC Summary</h2>
 <table>
 <tr><th>Batch</th><th>Samples</th><th>Removed</th><th>Pass</th><th>Pass %</th></tr>
 {brows}
-</table>"""
+</table>'''
 
 # ── Per-sample HTML table ─────────────────────────────────────────────────────
 per_sample_html = ""
@@ -258,7 +258,7 @@ if sample_rows_data:
         + f"<td>{html.escape(r[14])}</td></tr>"
         for r in sample_rows_data
     )
-    per_sample_html = f"""<h2>Per-sample QC Table</h2>
+    per_sample_html = f'''<h2>Per-sample QC Table</h2>
 <p>Full table available as <code>qc_per_sample.tsv</code>. Flags in red indicate QC failure at that step.</p>
 <div class="scroll-table">
 <table>
@@ -267,7 +267,7 @@ if sample_rows_data:
 <th>SMISS</th><th>HET_OUT</th><th>SEX_DISC</th><th>RELATED</th><th>ANC_OUT</th><th>QC_FAIL</th><th>BATCH</th></tr>
 {srows}
 </table>
-</div>"""
+</div>'''
 
 # ── Collect and base64-encode all QC plots ────────────────────────────────
 plot_order = [

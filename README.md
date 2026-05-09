@@ -24,8 +24,8 @@ At the end you get a self-contained HTML report with the full attrition table, a
 
 | Workflow | DAG |
 |----------|-----|
-| SNP Array QC | [snp_array_dag.html](assets/snp_array_dag.html) |
-| WGS / WES QC | [wgs_dag.html](assets/wgs_dag.html) |
+| SNP Array QC | [snp_array_dag.html](assets/snp_array_dag.png) |
+| WGS / WES QC | [wgs_dag.html](assets/wgs_dag.png) |
 
 To regenerate the diagrams:
 
@@ -38,7 +38,7 @@ nextflow run snp_array_qc/main.nf \
   --run_final_report true \
   --outdir results/dag_test \
   -profile docker \
-  -with-dag assets/snp_array_dag.html \
+  -with-dag assets/snp_array_dag.png \
   -preview
 
 # WGS / WES
@@ -53,7 +53,7 @@ nextflow run wgs_wes_qc/main.nf \
   --run_final_report true \
   --outdir results/dag_test \
   -profile docker \
-  -with-dag assets/wgs_dag.html \
+  -with-dag assets/wgs_dag.png \
   -preview
 ```
 
