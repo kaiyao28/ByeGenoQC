@@ -378,7 +378,7 @@ workflow {
     // ════════════════════════════════════════════════════════════════════════
     if (params.run_final_report) {
         ch_report_rmd = Channel.value(
-            file("${projectDir}/snp_array_qc/scripts/snp_array_qc_report.Rmd")
+            file("${projectDir}/scripts/snp_array_qc_report.Rmd")
         )
         FINAL_REPORT(
             ch_final,
@@ -407,7 +407,7 @@ workflow.onComplete {
     Excluded variants: ${outdir}/exclusion_lists/all_excluded_variants.txt
     ----------------------------------------------------------------
     Next steps:
-      1. Open final_report.html — review attrition table and plots
+      1. Open qc_report.pdf — review attrition table and plots
       2. Use cleaned_data/ PLINK files for GWAS or PRS
       3. Pass pca_covariates.txt as covariates in your analysis tool:
            PLINK2   --covar pca_covariates.txt
