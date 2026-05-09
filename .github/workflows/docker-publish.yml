@@ -37,7 +37,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=1.0
+            type=raw,value=1.1
             type=raw,value=latest
             type=sha,prefix=sha-
             type=ref,event=tag

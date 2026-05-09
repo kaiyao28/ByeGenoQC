@@ -63,5 +63,8 @@ dependencies:
   - r-scales>=1.2
   - r-rmarkdown>=2.20   # R Markdown PDF report
   - r-knitr>=1.40       # knitting engine for the Rmd
-  - r-tinytex>=0.45     # lightweight LaTeX for PDF output
   - pandoc>=2.17        # required by rmarkdown for rendering
+  # PDF output requires a system TeX Live installation (not conda-managed):
+  #   Ubuntu/Debian: sudo apt-get install texlive-latex-extra texlive-fonts-recommended lmodern
+  #   macOS:         brew install --cask basictex  (then tlmgr install booktabs longtable float)
+  #   HPC modules:   module load texlive

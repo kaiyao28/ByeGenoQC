@@ -3,26 +3,27 @@
 # =============================================================================
 #  Contains every tool required by both the SNP array and WGS/WES QC pipelines.
 #  Build:
-#    docker build -t genetic-qc:1.0 -f containers/Dockerfile .
+#    docker build -t genetic-qc:1.1 -f containers/Dockerfile .
 #
 #  Test:
-#    docker run --rm genetic-qc:1.0 plink   --version
-#    docker run --rm genetic-qc:1.0 plink2  --version
-#    docker run --rm genetic-qc:1.0 samtools --version
-#    docker run --rm genetic-qc:1.0 bcftools --version
-#    docker run --rm genetic-qc:1.0 gatk     --version
-#    docker run --rm genetic-qc:1.0 picard   --version
-#    docker run --rm genetic-qc:1.0 fastqc   --version
-#    docker run --rm genetic-qc:1.0 mosdepth --version
-#    docker run --rm genetic-qc:1.0 python3  --version
-#    docker run --rm genetic-qc:1.0 Rscript  --version
+#    docker run --rm genetic-qc:1.1 plink    --version
+#    docker run --rm genetic-qc:1.1 plink2   --version
+#    docker run --rm genetic-qc:1.1 samtools  --version
+#    docker run --rm genetic-qc:1.1 bcftools  --version
+#    docker run --rm genetic-qc:1.1 gatk      --version
+#    docker run --rm genetic-qc:1.1 picard    --version
+#    docker run --rm genetic-qc:1.1 fastqc    --version
+#    docker run --rm genetic-qc:1.1 mosdepth  --version
+#    docker run --rm genetic-qc:1.1 python3   --version
+#    docker run --rm genetic-qc:1.1 Rscript   --version
+#    docker run --rm genetic-qc:1.1 pdflatex  --version
 #
 #  Push to registry (optional):
-#    docker tag genetic-qc:1.0 ghcr.io/kaiyao28/genetic-qc:1.0
-#    docker push ghcr.io/kaiyao28/genetic-qc:1.0
+#    docker tag genetic-qc:1.1 ghcr.io/kaiyao28/genetic-qc:1.1
+#    docker push ghcr.io/kaiyao28/genetic-qc:1.1
 #
 #  Convert to Singularity SIF for HPC:
-#    apptainer build genetic-qc.sif docker://ghcr.io/kaiyao28/genetic-qc:1.0
+#    apptainer build genetic-qc.sif docker://ghcr.io/kaiyao28/genetic-qc:1.1
 # =============================================================================
 
 FROM condaforge/mambaforge:23.11.0-0
@@ -99,15 +100,22 @@ RUN mamba install -y \
         "pandoc" \
     && mamba clean -a -y
 
-# ── TinyTeX (lightweight LaTeX for PDF report knitting) ───────────────────────
-# install_tinytex() downloads ~200 MB; LaTeX packages are added after.
-# The symlink exposes pdflatex on PATH for diagnostics; rmarkdown finds it
-# automatically through the tinytex R package without needing the symlink.
-RUN Rscript -e "tinytex::install_tinytex(force=TRUE)" && \
-    Rscript -e "tinytex::tlmgr_install(c( \
-      'booktabs','longtable','float','caption', \
-      'geometry','xcolor','collection-fontsrecommended'))" && \
-    ln -sf /root/.TinyTeX/bin/$(uname -m)-linux/pdflatex /usr/local/bin/pdflatex
+# ── TeX Live — required for rmarkdown::render() → PDF ─────────────────────────
+# Use system TeX Live via apt-get rather than tinytex::install_tinytex().
+# tinytex downloads TinyTeX at install time and fails unpredictably in CI;
+# system texlive packages are pre-built and install without extra network calls.
+#   texlive-latex-base      : pdflatex, core LaTeX classes and packages
+#   texlive-fonts-recommended: lm, cm-super — fonts used by default documents
+#   texlive-latex-extra     : booktabs, longtable, float, caption, geometry, xcolor
+#   lmodern                 : Latin Modern fonts (avoids "Font shape undefined" warnings)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        texlive-latex-base \
+        texlive-fonts-recommended \
+        texlive-latex-extra \
+        lmodern \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # ── Verify key tool installations ─────────────────────────────────────────────
 RUN plink   --version 2>&1 | head -1 && \
