@@ -1,5 +1,5 @@
 # =============================================================================
-#  Genetic QC Pipeline — Docker image
+#  ByeGenoQC — Docker image
 # =============================================================================
 #  Contains every tool required by both the SNP array and WGS/WES QC pipelines.
 #  Build:
@@ -28,8 +28,8 @@
 
 FROM condaforge/mambaforge:23.11.0-0
 
-LABEL maintainer="genetic_qc_pipeline" \
-      description="All tools for SNP array and WGS/WES genetic QC" \
+LABEL maintainer="kaiyao28" \
+      description="ByeGenoQC: all tools for SNP array and WGS/WES genetic QC" \
       version="1.1"
 
 # Prevent interactive prompts during package install

@@ -10,6 +10,22 @@ A reproducible Nextflow DSL2 pipeline for SNP-array and sequencing quality contr
 
 ---
 
+## Contents
+
+- [What it does](#what-it-does)
+- [Quick start](#quick-start-30-seconds)
+- [Real-world examples](#real-world-examples)
+- [Output reports](#output-reports)
+- [Which workflow should I run?](#which-workflow-should-i-run)
+- [Supported platforms](#supported-platforms)
+- [Key configurable thresholds](#key-configurable-thresholds)
+- [Inspect before filtering](#inspect-before-filtering)
+- [Documentation](#documentation)
+- [Limitations and assumptions](#limitations-and-assumptions)
+- [Citation](#citation)
+
+---
+
 ## What it does
 
 ByeGenoQC implements industry-standard QC workflows for two common genomic data types:
@@ -21,7 +37,7 @@ ByeGenoQC implements industry-standard QC workflows for two common genomic data 
 
 All tools (PLINK, PLINK2, bcftools, samtools, GATK, FastQC, mosdepth, etc.) are pre-installed in a single Docker image. Every QC threshold is configurable, and the pipeline resumes from where it left off if interrupted.
 
-**Output:** Self-contained HTML report with full attrition table, QC metrics, and exact thresholds used — ready to paste into methods sections.
+**Output:** A report with full attrition table, QC metrics, and exact thresholds used — ready to paste into methods sections. SNP array QC produces a PDF report; WGS/WES QC produces a self-contained HTML report.
 
 ---
 
@@ -109,7 +125,10 @@ Full parameters: [WGS/WES Manual](docs/wgs_wes_qc_manual.md)
 
 ## Output reports
 
-Both pipelines produce a self-contained HTML report.
+The two pipelines produce different report formats:
+
+- **SNP Array QC** → `qc_report.pdf` (PDF, via R Markdown)
+- **WGS/WES QC** → `wgs_wes_final_report.html` (self-contained HTML, no dependencies)
 
 **SNP Array report** shows:
 - Final sample and variant counts
