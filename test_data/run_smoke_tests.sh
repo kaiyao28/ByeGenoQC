@@ -138,7 +138,6 @@ if [[ -z "$TEST" || "$TEST" == "wgs_wes" ]]; then
       --docker_image "${IMAGE}" \
       -profile "${PROFILE}" \
       -ansi-log false \
-      -with-dag assets/wgs_dag.png \
       -resume
     echo
 fi
@@ -155,7 +154,6 @@ if [[ -z "$TEST" || "$TEST" == "snp_array" ]]; then
       --docker_image "${IMAGE}" \
       -profile "${PROFILE}" \
       -ansi-log false \
-      -with-dag assets/snp_array_dag.png \
       -resume
     echo
 fi

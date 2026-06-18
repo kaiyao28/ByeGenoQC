@@ -39,8 +39,13 @@ jobs:
       - name: Verify Docker is available
         run: docker --version
 
-      - name: Run SNP array smoke test
+      - name: Run SNP array smoke test (variant-only)
         run: bash test_data/run_smoke_tests.sh --test snp_array
+        env:
+          GENETIC_QC_DOCKER_IMAGE: ghcr.io/kaiyao28/genetic-qc:1.1
+
+      - name: Run SNP array smoke test (full QC)
+        run: bash test_data/run_smoke_tests.sh --test snp_full
         env:
           GENETIC_QC_DOCKER_IMAGE: ghcr.io/kaiyao28/genetic-qc:1.1
 
