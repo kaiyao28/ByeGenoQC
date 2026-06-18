@@ -25,6 +25,8 @@ jobs:
           distribution: "temurin"
 
       - name: Install Nextflow
+        env:
+          NXF_VER: "24.10.5"
         run: |
           curl -s https://get.nextflow.io | bash
           mkdir -p "$HOME/bin"
@@ -64,6 +66,7 @@ jobs:
           path: |
             results/
             .nextflow.log
+            .nextflow/
           if-no-files-found: ignore
 
       - name: Success summary
