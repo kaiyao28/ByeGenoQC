@@ -1,0 +1,81 @@
+name: CI Smoke Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  smoke-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Install Nextflow
+        run: |
+          curl -s https://get.nextflow.io | bash
+          mkdir -p $HOME/bin
+          mv nextflow $HOME/bin/
+          echo "$HOME/bin" >> $GITHUB_PATH
+
+      - name: Verify Java and Nextflow
+        run: |
+          java -version
+          nextflow -version
+
+      - name: Verify Docker is available
+        run: docker --version
+
+      - name: Run SNP array smoke test
+        run: bash test_data/run_smoke_tests.sh --test snp_array
+        env:
+          GENETIC_QC_DOCKER_IMAGE: ghcr.io/kaiyao28/genetic-qc:1.1
+
+      - name: Run WGS/WES smoke test
+        run: bash test_data/run_smoke_tests.sh --test wgs_wes
+        env:
+          GENETIC_QC_DOCKER_IMAGE: ghcr.io/kaiyao28/genetic-qc:1.1
+
+      - name: Upload SNP array results on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: snp-array-results
+          path: results/test_snp_variant_only/
+          if-no-files-found: ignore
+
+      - name: Upload WGS/WES results on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wgs-wes-results
+          path: results/test_vcf_variant_only/
+          if-no-files-found: ignore
+
+      - name: Upload Nextflow logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nextflow-logs
+          path: .nextflow.log
+          if-no-files-found: ignore
+
+      - name: Summary
+        if: success()
+        run: |
+          echo "✅ SNP array smoke test passed"
+          echo "✅ WGS/WES smoke test passed"
+          echo "Both pipelines are working correctly."

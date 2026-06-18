@@ -1,5 +1,6 @@
-# Genetic QC Pipeline
+# ByeGenoQC
 
+<<<<<<< HEAD
 Everything you need for production-grade genetic QC, batteries included. Clone the repo, run one command, get a clean dataset and a PDF report — no manual tool installation, no custom scripts.
 
 The pipeline covers the full QC stack for two data types:
@@ -55,12 +56,37 @@ nextflow run wgs_wes_qc/main.nf \
   -with-dag assets/wgs_dag.png \
   -preview
 ```
+=======
+A reproducible Nextflow DSL2 pipeline for SNP-array and sequencing quality control, designed for research-scale genomic workflows.
+
+[![CI Smoke Tests](https://img.shields.io/github/actions/workflow/status/kaiyao28/ByeGenoQC/ci-smoke-tests.yml?branch=main&label=CI&logo=github)](https://github.com/kaiyao28/ByeGenoQC/actions/workflows/ci-smoke-tests.yml)
+[![Docker Image](https://img.shields.io/badge/Docker-ghcr.io%2Fkaiyao28%2Fgenetic--qc%3A1.1-blue?logo=docker)](https://github.com/kaiyao28/ByeGenoQC/pkgs/container/genetic-qc)
+[![Nextflow DSL2](https://img.shields.io/badge/Nextflow-DSL2-brightgreen?logo=nextflow)](https://www.nextflow.io/)
+[![License MIT](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
+[![Version 0.1.0](https://img.shields.io/badge/Version-0.1.0-blue)](CHANGELOG.md)
+>>>>>>> 175231b (Systematic improvements)
 
 ---
 
-## Quick Start
+## What it does
+
+ByeGenoQC implements industry-standard QC workflows for two common genomic data types:
+
+| Input | Workflow | Key Steps |
+|-------|----------|-----------|
+| **PLINK binary** (`.bed/.bim/.fam`) | SNP array QC | Missingness, HWE, MAF, sex check, heterozygosity, relatedness, ancestry PCA |
+| **FASTQ/BAM/CRAM/VCF** | WGS/WES QC | Coverage, contamination, duplication rate, variant-level QC, genotype filtering, ancestry PCA |
+
+All tools (PLINK, PLINK2, bcftools, samtools, GATK, FastQC, mosdepth, etc.) are pre-installed in a single Docker image. Every QC threshold is configurable, and the pipeline resumes from where it left off if interrupted.
+
+**Output:** Self-contained HTML report with full attrition table, QC metrics, and exact thresholds used — ready to paste into methods sections.
+
+---
+
+## Quick start (30 seconds)
 
 ```bash
+<<<<<<< HEAD
 git clone https://github.com/kaiyao28/GeneticQC.git
 cd GeneticQC
 bash test_data/run_smoke_tests.sh                    # all three tests
@@ -74,10 +100,22 @@ The smoke test script checks Docker and Nextflow, pulls the image, and runs the 
 For HPC without Docker or Singularity, use `--profile manual_paths` instead (see [Setup Guide](docs/setup.md)).
 
 For platform-specific setup (Windows/WSL, Linux, macOS, HPC), see [Setup Guide](docs/setup.md).
+=======
+git clone https://github.com/kaiyao28/ByeGenoQC.git
+cd ByeGenoQC
+bash test_data/run_smoke_tests.sh              # run both pipelines
+bash test_data/run_smoke_tests.sh --test snp_array   # SNP array only
+bash test_data/run_smoke_tests.sh --test wgs_wes     # WGS/WES only
+```
+
+The smoke tests run synthetic toy data in Docker in a few minutes and write reports to `results/`. No manual setup required.
+>>>>>>> 175231b (Systematic improvements)
 
 ---
 
-## Example: SNP Array QC
+## Real-world examples
+
+### SNP Array QC
 
 ### Step 1 — Inspect your data first
 
@@ -88,6 +126,7 @@ nextflow run snp_array_qc/inspect.nf \
   -profile docker
 ```
 
+<<<<<<< HEAD
 Open `results/inspect/inspect_report.html` in a browser. It shows the full distribution of every QC metric — missingness, MAF, HWE p-values, heterozygosity, pairwise IBD, and PCA — with the default thresholds marked. The file `results/inspect/params_template.yaml` is pre-filled with all parameters and annotated with the observed statistics from your dataset:
 
 ```yaml
@@ -106,6 +145,9 @@ ld_regions: data/high_ld_hg19.txt        # recommended: exclude MHC and inversio
 ```
 
 ### Step 2 — Run QC
+=======
+Add a reference panel for ancestry PCA:
+>>>>>>> 175231b (Systematic improvements)
 
 ```bash
 nextflow run snp_array_qc/main.nf \
@@ -122,13 +164,11 @@ nextflow run snp_array_qc/main.nf \
   -profile docker
 ```
 
-Full parameter reference: [SNP Array QC Manual](docs/snp_array_qc_manual.md)
+Full parameters: [SNP Array Manual](docs/snp_array_qc_manual.md)
 
----
+### WGS / WES QC
 
-## Example: WGS / WES QC
-
-BAM/CRAM input (WES):
+**BAM/CRAM input (WES):**
 
 ```bash
 nextflow run wgs_wes_qc/main.nf \
@@ -141,7 +181,7 @@ nextflow run wgs_wes_qc/main.nf \
   -profile docker
 ```
 
-VCF input (variant QC only):
+**VCF input (variant QC only):**
 
 ```bash
 nextflow run wgs_wes_qc/main.nf \
@@ -155,41 +195,37 @@ nextflow run wgs_wes_qc/main.nf \
   -profile docker
 ```
 
-Full parameter reference: [WGS/WES QC Manual](docs/wgs_wes_qc_manual.md)
+Full parameters: [WGS/WES Manual](docs/wgs_wes_qc_manual.md)
 
 ---
 
-## Reports
+## Output reports
 
+<<<<<<< HEAD
 **SNP Array report** (`06_report/qc_report.pdf`):
+=======
+Both pipelines produce a self-contained HTML report.
 
-| Metric | Value |
-|--------|-------|
-| Final samples | 950 |
-| Final variants | 487 203 |
-| Excluded samples | 12 |
-| Excluded variants | 4 891 |
+**SNP Array report** shows:
+- Final sample and variant counts
+- Per-step attrition (samples and variants removed at each filter)
+- All QC metrics and thresholds used
+>>>>>>> 175231b (Systematic improvements)
 
-Followed by a per-step attrition table showing variants and samples removed at each QC filter (duplicate check, missingness, HWE, MAF, sex check, heterozygosity, relatedness, PCA), and a thresholds table recording all parameter values used.
+**WGS/WES report** shows:
+- Input validation status
+- Variant-level QC (Ts/Tv ratio, SNP/indel counts)
+- Sample-level QC (coverage, contamination, duplication)
+- Genotype filtering applied
+- Whether sample-level QC is final or provisional
 
-**WGS/WES report** (`wgs_wes_final_report.html`):
-
-| Phase | Step | Metric | Value |
-|-------|------|--------|-------|
-| input_check | input_check | status | PASS |
-| variant_level_qc | variant_calling_qc | ts_tv_ratio | 2.07 |
-| variant_level_qc | variant_calling_qc | n_snps | 4 812 301 |
-| variant_level_qc | variant_calling_qc | n_indels | 891 204 |
-| variant_level_qc | merge_chromosomes | n_variants | 5 703 505 |
-| sample_level_qc | coverage_qc | mean_depth | 34.2 |
-| sample_level_qc | contamination | freemix | 0.009 |
-
-Followed by thresholds and run settings. The report records which phases ran, which were skipped, and whether sample-level QC is final or provisional (provisional when fewer than all 22 autosomes were analysed).
+**See [Example Outputs](docs/example_outputs.md)** for detailed descriptions of what each report contains and how to interpret the results.
 
 ---
 
-## Execution Profiles
+## Which workflow should I run?
 
+<<<<<<< HEAD
 | Profile | When to use |
 |---------|-------------|
 | `docker` | Laptop or workstation with Docker Desktop |
@@ -200,12 +236,25 @@ Followed by thresholds and run settings. The report records which phases ran, wh
 On HPC, always pair the scheduler profile (`slurm`, `lsf`) with the container profile (`singularity`). `-profile singularity` alone runs on the login node. Use absolute paths for `--bfile` and `--outdir` on clusters — relative paths can fail silently on compute nodes.
 
 If no container engine is available, run `bash setup_hpc_manual.sh` first to download all tools. See [Setup Guide](docs/setup.md) for full cluster instructions.
+=======
+See [decision tree](docs/setup.md#which-workflow-should-i-run) in the setup guide to choose the right command for your data and platform.
+>>>>>>> 175231b (Systematic improvements)
 
 ---
 
-## Key Thresholds
+## Supported platforms
 
-All thresholds have defaults and can be overridden on the command line:
+- **Local:** Docker (macOS, Linux, Windows + WSL)
+- **HPC:** Singularity/Apptainer, SLURM, LSF
+- **No containers:** Manual tool installation with `setup_hpc_manual.sh`
+
+All platform-specific instructions: [Setup Guide](docs/setup.md)
+
+---
+
+## Key configurable thresholds
+
+All thresholds have sensible defaults and can be overridden:
 
 ```bash
 # SNP array
@@ -215,12 +264,73 @@ All thresholds have defaults and can be overridden on the command line:
 --min_mean_depth_wgs 30  --max_contamination 0.02  --min_gq 30
 ```
 
+See manuals for the full list.
+
+---
+
+## Inspect before filtering
+
+The SNP array pipeline includes an optional `inspect.nf` step that computes QC metric distributions on your data and generates a template parameter file. Use this to understand your dataset before applying hard filters:
+
+```bash
+nextflow run snp_array_qc/inspect.nf \
+  --bfile data/raw/genotypes \
+  --outdir results/inspect
+```
+
+This generates `params_template.yaml` with suggested thresholds based on your data. Review it, adjust, then run `main.nf`.
+
 ---
 
 ## Documentation
 
-- [Setup Guide](docs/setup.md)
-- [SNP Array QC Manual](docs/snp_array_qc_manual.md)
-- [WGS/WES QC Manual](docs/wgs_wes_qc_manual.md)
-- [References](docs/references.md)
-- [Test Data](test_data/README.md)
+- [Setup Guide](docs/setup.md) — Windows, macOS, Linux, HPC, troubleshooting
+- [Example Outputs](docs/example_outputs.md) — detailed report descriptions and metric interpretation
+- [SNP Array QC Manual](docs/snp_array_qc_manual.md) — full workflow and parameters
+- [WGS/WES QC Manual](docs/wgs_wes_qc_manual.md) — full workflow and parameters
+- [References](docs/references.md) — tool citations and default parameter rationale
+- [Test Data](test_data/README.md) — how smoke test data were generated
+
+---
+
+## Limitations and assumptions
+
+- Sample-level QC results are **provisional** if fewer than all 22 autosomes are analysed (reports will flag this)
+- The pipeline assumes **diploid autosomes**; sex chromosomes and polyploid genomes are not explicitly handled
+- VCF-only input skips sample-level QC steps that require BAM/CRAM (coverage, contamination, duplication)
+- Reference panel for PCA is optional; if not provided, PCA uses only study samples
+
+---
+
+## Citation
+
+If you use ByeGenoQC in published research, please cite:
+
+```bibtex
+@software{ByeGenoQC,
+  title={ByeGenoQC: A Nextflow DSL2 Pipeline for Genetic Quality Control},
+  author={Yao, Kai},
+  year={2024},
+  url={https://github.com/kaiyao28/ByeGenoQC}
+}
+```
+
+---
+
+## License
+
+MIT License — see [LICENSE](LICENSE) for details.
+
+---
+
+## Contributing
+
+We welcome bug reports, feature requests, and pull requests. Please open an issue on [GitHub](https://github.com/kaiyao28/ByeGenoQC/issues).
+
+---
+
+## Questions or issues?
+
+- Check the [Setup Guide](docs/setup.md) troubleshooting section
+- Review the manual for your workflow
+- Open an [issue](https://github.com/kaiyao28/ByeGenoQC/issues) on GitHub

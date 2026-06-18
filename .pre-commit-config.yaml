@@ -1,0 +1,48 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: detect-private-key
+
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.9.0.6
+    hooks:
+      - id: shellcheck
+        args: ['--severity=warning']
+        exclude: ^(test_data|\.git)
+
+  - repo: https://github.com/hadialqattan/pycln
+    rev: v2.2.2
+    hooks:
+      - id: pycln
+        language_version: python3
+        exclude: ^test_data
+
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        exclude: ^test_data
+
+  - repo: https://github.com/psf/black
+    rev: 23.12.1
+    hooks:
+      - id: black
+        language_version: python3
+        exclude: ^test_data
+
+  - repo: local
+    hooks:
+      - id: nextflow-lint
+        name: Nextflow syntax check
+        entry: bash -c 'for f in $(find . -name "*.nf" -type f); do echo "Checking $f..." && nextflow run "$f" -preview || exit 1; done'
+        language: system
+        types: [file]
+        files: \.nf$
+        pass_filenames: false
+        stages: [commit]

@@ -39,6 +39,65 @@ The Docker image contains tools such as PLINK, PLINK2, bcftools, samtools, GATK,
 | macOS workstation | Nextflow + Docker Desktop |
 | HPC cluster | Nextflow + Apptainer/Singularity + scheduler profile |
 
+## Which workflow should I run?
+
+Use this decision tree to select the right command:
+
+### I have PLINK binary data (SNP array)
+
+```bash
+# First, understand your data thresholds (optional but recommended):
+nextflow run snp_array_qc/inspect.nf \
+  --bfile data/raw/genotypes \
+  --outdir results/inspect
+
+# Then run full QC:
+nextflow run snp_array_qc/main.nf \
+  --bfile data/raw/genotypes \
+  --outdir results/snp_array_qc \
+  -profile docker
+```
+
+### I have only a VCF file
+
+```bash
+nextflow run wgs_wes_qc/main.nf \
+  --input_type vcf \
+  --samplesheet samplesheet.csv \
+  --reference_fasta /data/reference/GRCh38.fa \
+  --mode wgs \
+  --run_variant_qc true \
+  --run_sample_qc false \
+  --outdir results/vcf_qc \
+  -profile docker
+```
+
+### I have BAM/CRAM files (WES or WGS)
+
+```bash
+nextflow run wgs_wes_qc/main.nf \
+  --input_type bam \
+  --samplesheet samplesheet.csv \
+  --reference_fasta /data/reference/GRCh38.fa \
+  --target_intervals /data/reference/exome_targets.bed \
+  --mode wes \
+  --outdir results/wgs_wes_qc \
+  -profile docker
+```
+
+### I am on an HPC cluster without Docker
+
+Use Singularity/Apptainer instead of Docker:
+
+```bash
+nextflow run snp_array_qc/main.nf \
+  --bfile data/raw/genotypes \
+  --outdir results/snp_array_qc \
+  -profile slurm,singularity
+```
+
+Or, if no containers are available, use the manual tool installation (see [HPC Without Containers](#hpc-without-containers-manual-tool-installation) below).
+
 ## Windows Setup
 
 Recommended Windows setup:
@@ -75,7 +134,7 @@ docker info
 Pull the published image:
 
 ```powershell
-docker pull ghcr.io/kaiyao28/genetic-qc:1.0
+docker pull ghcr.io/kaiyao28/genetic-qc:1.1
 ```
 
 If this fails with `dockerDesktopLinuxEngine`, Docker Desktop is not running or the Linux/WSL backend is not enabled.
@@ -128,7 +187,7 @@ Back in Ubuntu:
 
 ```bash
 docker version
-docker pull ghcr.io/kaiyao28/genetic-qc:1.0
+docker pull ghcr.io/kaiyao28/genetic-qc:1.1
 ```
 
 ### 5. Clone and run the test workflow
@@ -136,8 +195,8 @@ docker pull ghcr.io/kaiyao28/genetic-qc:1.0
 Inside Ubuntu:
 
 ```bash
-git clone https://github.com/kaiyao28/GeneticQC.git
-cd GeneticQC
+git clone https://github.com/kaiyao28/ByeGenoQC.git
+cd ByeGenoQC
 ```
 
 Run the smoke tests:
@@ -176,14 +235,14 @@ source ~/.bashrc
 Clone the pipeline:
 
 ```bash
-git clone https://github.com/kaiyao28/GeneticQC.git
-cd GeneticQC
+git clone https://github.com/kaiyao28/ByeGenoQC.git
+cd ByeGenoQC
 ```
 
 Pull the Docker image:
 
 ```bash
-docker pull ghcr.io/kaiyao28/genetic-qc:1.0
+docker pull ghcr.io/kaiyao28/genetic-qc:1.1
 ```
 
 Run the smoke tests:
@@ -237,14 +296,14 @@ Create or pull a SIF image on shared storage:
 
 ```bash
 mkdir -p containers
-apptainer pull containers/genetic-qc.sif docker://ghcr.io/kaiyao28/genetic-qc:1.0
+apptainer pull containers/genetic-qc.sif docker://ghcr.io/kaiyao28/genetic-qc:1.1
 ```
 
 If your cluster uses `singularity` instead of `apptainer`:
 
 ```bash
 mkdir -p containers
-singularity pull containers/genetic-qc.sif docker://ghcr.io/kaiyao28/genetic-qc:1.0
+singularity pull containers/genetic-qc.sif docker://ghcr.io/kaiyao28/genetic-qc:1.1
 ```
 
 Make sure `conf/singularity.config` points to the SIF file. The default is:
@@ -470,9 +529,9 @@ bcftools --version | head -1 && gatk --version && mosdepth --version
 On Windows PowerShell without WSL/Git Bash, test the Docker image directly:
 
 ```powershell
-docker run --rm ghcr.io/kaiyao28/genetic-qc:1.0 plink --version
-docker run --rm ghcr.io/kaiyao28/genetic-qc:1.0 bcftools --version
-docker run --rm ghcr.io/kaiyao28/genetic-qc:1.0 gatk --version
+docker run --rm ghcr.io/kaiyao28/genetic-qc:1.1 plink --version
+docker run --rm ghcr.io/kaiyao28/genetic-qc:1.1 bcftools --version
+docker run --rm ghcr.io/kaiyao28/genetic-qc:1.1 gatk --version
 ```
 
 ### Step 2 — Generate test data and run smoke tests
@@ -541,7 +600,7 @@ corrupted, or contains a broken layer from a previous failed pull.
 First restart Docker Desktop. Then try:
 
 ```bash
-docker image rm ghcr.io/kaiyao28/genetic-qc:1.0
+docker image rm ghcr.io/kaiyao28/genetic-qc:1.1
 docker builder prune
 docker system prune
 ```
@@ -569,7 +628,7 @@ Docker Desktop -> Troubleshoot -> Clean / Purge data
 
 This removes local Docker images and containers, but not your Git repository.
 
-### `docker pull ghcr.io/kaiyao28/genetic-qc:1.0` says denied
+### `docker pull ghcr.io/kaiyao28/genetic-qc:1.1` says denied
 
 The GHCR package is private or the image has not been published. Maintainers should check GitHub Actions and package visibility.
 

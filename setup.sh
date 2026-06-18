@@ -12,7 +12,7 @@
 set -euo pipefail
 
 MODE="${1:-conda}"
-IMAGE="genetic-qc:1.0"
+IMAGE="genetic-qc:1.1"
 SIF="containers/genetic-qc.sif"
 ENV_FILE="containers/environment.yml"
 DOCKERFILE="containers/Dockerfile"

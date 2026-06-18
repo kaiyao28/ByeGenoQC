@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+title: ByeGenoQC
+message: >-
+  If you use ByeGenoQC in your research, please cite it as below.
+type: software
+authors:
+  - family-names: Yao
+    given-names: Kai
+    orcid: 'https://orcid.org/0000-0000-0000-0000'
+repository-code: 'https://github.com/kaiyao28/ByeGenoQC'
+url: 'https://github.com/kaiyao28/ByeGenoQC'
+abstract: >-
+  A reproducible Nextflow DSL2 pipeline for SNP-array and sequencing quality
+  control, designed for research-scale genomic workflows.
+keywords:
+  - bioinformatics
+  - genomics
+  - quality-control
+  - nextflow
+  - nf-core
+  - snp-array
+  - whole-genome-sequencing
+  - whole-exome-sequencing
+license: MIT
+version: 0.1.0
+date-released: '2024-01-01'
