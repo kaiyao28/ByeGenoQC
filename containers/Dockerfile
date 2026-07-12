@@ -95,6 +95,7 @@ RUN mamba install -y \
         "r-dplyr=1.1" \
         "r-readr=2.1" \
         "r-scales=1.3" \
+        "r-kernsmooth" \
         "r-rmarkdown" \
         "r-knitr" \
         "pandoc" \
