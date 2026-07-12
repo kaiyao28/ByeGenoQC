@@ -3,11 +3,11 @@
 #  setup.sh — install all pipeline dependencies
 # =============================================================================
 #  Usage:
-#    bash setup.sh              # install via Mamba (default, works everywhere)
-#    bash setup.sh docker       # build Docker image instead
-#    bash setup.sh singularity  # build Docker image then convert to SIF
+#    bash scripts/setup.sh              # install via Mamba (default, works everywhere)
+#    bash scripts/setup.sh docker       # build Docker image instead
+#    bash scripts/setup.sh singularity  # build Docker image then convert to SIF
 #
-#  After setup, run:  bash test_env.sh
+#  After setup, run:  bash scripts/test_env.sh
 # =============================================================================
 set -euo pipefail
 
@@ -96,5 +96,5 @@ else
 fi
 
 echo ""
-echo "=== Setup complete. Now run:  bash test_env.sh ==="
+echo "=== Setup complete. Now run:  bash scripts/test_env.sh ==="
 echo ""

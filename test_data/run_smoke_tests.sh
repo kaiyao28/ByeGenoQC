@@ -92,7 +92,7 @@ fi
 # ── Nextflow check ─────────────────────────────────────────────────────────────
 if ! command -v nextflow >/dev/null 2>&1; then
     echo "ERROR: nextflow is not available on PATH."
-    echo "Run setup_hpc_manual.sh first, then add \$TOOL_DIR/bin to PATH."
+    echo "Run scripts/setup_hpc_manual.sh first, then add \$TOOL_DIR/bin to PATH."
     exit 1
 fi
 

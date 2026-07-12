@@ -53,7 +53,7 @@ WSL Ubuntu:
   clone and run the pipeline
 ```
 
-PowerShell is not Bash. Commands such as `curl -s ... | bash`, `export PATH=...`, and `bash test_env.sh` are Linux/Bash commands. Use them inside WSL Ubuntu, not plain PowerShell.
+PowerShell is not Bash. Commands such as `curl -s ... | bash`, `export PATH=...`, and `bash scripts/test_env.sh` are Linux/Bash commands. Use them inside WSL Ubuntu, not plain PowerShell.
 
 ### 1. Install Docker Desktop
 
@@ -362,13 +362,13 @@ where possible and compiles from source otherwise. No root access needed.
 
 ```bash
 # Default: installs to ~/genetic_qc_tools
-bash setup_hpc_manual.sh
+bash scripts/setup_hpc_manual.sh
 
 # Custom location (recommended for shared clusters):
-bash setup_hpc_manual.sh --dir /shared/software/genetic_qc_tools
+bash scripts/setup_hpc_manual.sh --dir /shared/software/genetic_qc_tools
 
 # Skip samtools/bcftools compilation (if they are already available via module load):
-bash setup_hpc_manual.sh --skip-compile
+bash scripts/setup_hpc_manual.sh --skip-compile
 ```
 
 The script downloads: Nextflow, PLINK 1.9, PLINK 2, samtools, bcftools, htslib,
@@ -437,7 +437,7 @@ Load gcc first, then re-run the script:
 
 ```bash
 module load gcc
-bash setup_hpc_manual.sh
+bash scripts/setup_hpc_manual.sh
 ```
 
 Or ask the cluster sysadmin to load samtools and bcftools as modules, then use
@@ -445,7 +445,7 @@ Or ask the cluster sysadmin to load samtools and bcftools as modules, then use
 
 ```bash
 module load samtools bcftools
-bash setup_hpc_manual.sh --skip-compile
+bash scripts/setup_hpc_manual.sh --skip-compile
 ```
 
 **VerifyBamID2 download fails**
@@ -472,19 +472,19 @@ Tools on `PATH` when Nextflow starts are inherited by compute node processes.
 Docker:
 
 ```bash
-bash test_env.sh docker
+bash scripts/test_env.sh docker
 ```
 
 For a different Docker image:
 
 ```bash
-GENETIC_QC_DOCKER_IMAGE=my-image:tag bash test_env.sh docker
+GENETIC_QC_DOCKER_IMAGE=my-image:tag bash scripts/test_env.sh docker
 ```
 
 Singularity/Apptainer:
 
 ```bash
-bash test_env.sh singularity
+bash scripts/test_env.sh singularity
 ```
 
 Manual install (`manual_paths` profile):

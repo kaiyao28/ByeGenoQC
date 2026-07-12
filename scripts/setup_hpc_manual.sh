@@ -17,9 +17,9 @@
 #      If not available, load them first: module load gcc
 #
 #  Usage:
-#    bash setup_hpc_manual.sh                        # installs to ~/genetic_qc_tools
-#    bash setup_hpc_manual.sh --dir /shared/tools    # custom location
-#    bash setup_hpc_manual.sh --dir /shared/tools --skip-compile   # skip samtools build
+#    bash scripts/setup_hpc_manual.sh                        # installs to ~/genetic_qc_tools
+#    bash scripts/setup_hpc_manual.sh --dir /shared/tools    # custom location
+#    bash scripts/setup_hpc_manual.sh --dir /shared/tools --skip-compile   # skip samtools build
 #
 #  After running, add this to your nextflow command:
 #    --tool_dir $TOOL_DIR   OR   export GENETIC_QC_TOOL_DIR=$TOOL_DIR

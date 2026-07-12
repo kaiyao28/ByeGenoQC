@@ -3,9 +3,9 @@
 #  test_env.sh — verify all pipeline tools are installed and callable
 # =============================================================================
 #  Usage:
-#    bash test_env.sh            # test tools on PATH (conda / standard mode)
-#    bash test_env.sh docker     # test tools inside the Docker image
-#    bash test_env.sh singularity # test tools inside the SIF
+#    bash scripts/test_env.sh            # test tools on PATH (conda / standard mode)
+#    bash scripts/test_env.sh docker     # test tools inside the Docker image
+#    bash scripts/test_env.sh singularity # test tools inside the SIF
 #
 #  Output:
 #    Prints PASS / WARN / FAIL per tool to the terminal.
@@ -139,7 +139,7 @@ echo "Log written to: ${LOG}"
 if [[ $FAIL_COUNT -gt 0 ]]; then
     echo ""
     echo -e "${RED}FAIL: ${FAIL_COUNT} required tool(s) missing.${NC}"
-    echo "Check ${LOG} for details, then re-run setup.sh."
+    echo "Check ${LOG} for details, then re-run scripts/setup.sh."
     echo ""
     exit 1
 elif [[ $WARN_COUNT -gt 0 ]]; then
