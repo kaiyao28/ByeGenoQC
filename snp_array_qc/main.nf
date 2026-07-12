@@ -367,6 +367,7 @@ workflow {
 
     ch_final = ch_cleaned
     EXPORT_FINAL_PLINK(ch_final)
+    ch_final_export = EXPORT_FINAL_PLINK.out.plink
 
     // Collect all variant exclusion IDs (from both Phase 2 and Phase 3b)
     ch_all_excluded_variants = ch_variant_exclusions.collectFile(
@@ -383,7 +384,7 @@ workflow {
             file("${projectDir}/scripts/snp_array_qc_report.Rmd")
         )
         FINAL_REPORT(
-            ch_final,
+            ch_final_export,
             ch_qc_summaries.collect(),
             ch_all_excluded_samples,
             ch_all_excluded_variants,

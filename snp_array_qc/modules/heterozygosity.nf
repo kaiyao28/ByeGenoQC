@@ -106,11 +106,11 @@ if len(data) < 2:
     with open("heterozygosity_outliers.txt", "w") as out:
         pass
     with open("heterozygosity_summary.txt", "w") as out:
-        out.write("step=heterozygosity\n")
-        out.write("dataset=${meta.id}\n")
-        out.write("status=skipped_too_few_samples\n")
-        out.write(f"n_samples={len(data)}\n")
-        out.write("n_outliers_removed=0\n")
+        print("step=heterozygosity", file=out)
+        print("dataset=${meta.id}", file=out)
+        print("status=skipped_too_few_samples", file=out)
+        print(f"n_samples={len(data)}", file=out)
+        print("n_outliers_removed=0", file=out)
     print(f"WARNING: Only {len(data)} sample(s) — cannot compute SD, skipping het outlier detection")
     sys.exit(0)
 
@@ -125,18 +125,18 @@ outliers = [(fid, iid, r) for fid, iid, r in data if r < lo or r > hi]
 
 with open("heterozygosity_outliers.txt", "w") as out:
     for fid, iid, r in outliers:
-        out.write(f"{fid}\t{iid}\\n")
+        print(f"{fid}\t{iid}", file=out)
 
 with open("heterozygosity_summary.txt", "w") as out:
-    out.write(f"step=heterozygosity\\n")
-    out.write(f"dataset=${meta.id}\\n")
-    out.write(f"sd_threshold=${params.heterozygosity_sd}\\n")
-    out.write(f"mean_het_rate={mean_het:.6f}\\n")
-    out.write(f"sd_het_rate={sd_het:.6f}\\n")
-    out.write(f"lower_cutoff={lo:.6f}\\n")
-    out.write(f"upper_cutoff={hi:.6f}\\n")
-    out.write(f"n_samples={len(data)}\\n")
-    out.write(f"n_outliers_removed={len(outliers)}\\n")
+    print("step=heterozygosity", file=out)
+    print("dataset=${meta.id}", file=out)
+    print("sd_threshold=${params.heterozygosity_sd}", file=out)
+    print(f"mean_het_rate={mean_het:.6f}", file=out)
+    print(f"sd_het_rate={sd_het:.6f}", file=out)
+    print(f"lower_cutoff={lo:.6f}", file=out)
+    print(f"upper_cutoff={hi:.6f}", file=out)
+    print(f"n_samples={len(data)}", file=out)
+    print(f"n_outliers_removed={len(outliers)}", file=out)
 
 print(f"Heterozygosity: {len(outliers)} outliers flagged "
       f"(mean={mean_het:.4f}, SD={sd_het:.4f}, "

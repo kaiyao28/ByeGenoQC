@@ -68,7 +68,6 @@ process VARIANT_CALLRATE {
     n_controls=\$(awk '\$6==1' ${fam} | wc -l)
 
     touch cc_miss_removed.txt
-    touch cc_miss_summary.txt
 
     if [ "\${n_cases}" -gt 0 ] && [ "\${n_controls}" -gt 0 ] && \
        [ "${params.cc_miss_p}" != "null" ]; then
@@ -110,7 +109,17 @@ ggsave("cc_miss_plot.png", p, width=8, height=5)
 RSCRIPT
         fi
     else
-        echo "No case-control phenotype coding — skipping differential missingness test"
+        echo "No case-control phenotype coding or cc_miss_p is null - skipping differential missingness test"
+        cat > cc_miss_summary.txt << EOF
+step=cc_miss_test
+dataset=${meta.id}
+status=skipped
+reason=no_case_control_data_or_cc_miss_p_null
+cc_miss_p_threshold=${params.cc_miss_p}
+n_cases=\${n_cases}
+n_controls=\${n_controls}
+n_variants_failing=0
+EOF
     fi
 
     # ── Step 3: Apply overall missingness filter + cc_miss exclusion ──────────
