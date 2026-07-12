@@ -26,7 +26,9 @@ jobs:
           java-version: "17"
 
       - name: Set up Nextflow
-        uses: nextflow-io/setup-nextflow@v2
+        uses: nf-core/setup-nextflow@v2
+        with:
+          version: "24.10.5"
 
       - name: Check Bash syntax
         run: |
@@ -97,7 +99,9 @@ jobs:
           java-version: "17"
 
       - name: Set up Nextflow
-        uses: nextflow-io/setup-nextflow@v2
+        uses: nf-core/setup-nextflow@v2
+        with:
+          version: "24.10.5"
 
       - name: Verify Java, Nextflow, and Docker
         run: |
