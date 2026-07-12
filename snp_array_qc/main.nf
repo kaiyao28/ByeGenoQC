@@ -57,6 +57,7 @@ include { ANCESTRY_PCA            } from './modules/ancestry_pca'
 include { HWE_FILTER              } from './modules/hwe_filter'
 include { MAF_FILTER              } from './modules/maf_filter'
 include { MERGE_CHROMOSOMES       } from './modules/merge_chromosomes'
+include { EXPORT_FINAL_PLINK      } from './modules/export_final_plink'
 include { FINAL_REPORT            } from './modules/final_report'
 
 // ── Chromosome range parser ───────────────────────────────────────────────────
@@ -365,6 +366,7 @@ workflow {
     }
 
     ch_final = ch_cleaned
+    EXPORT_FINAL_PLINK(ch_final)
 
     // Collect all variant exclusion IDs (from both Phase 2 and Phase 3b)
     ch_all_excluded_variants = ch_variant_exclusions.collectFile(

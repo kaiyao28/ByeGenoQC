@@ -223,15 +223,17 @@ assert_nonempty_glob() {
 
 assert_cleaned_plink_outputs() {
     local outdir="$1"
+    local prefix="$2"
     assert_dir_exists "$outdir/05_cleaned_data" || return 1
-    assert_nonempty_glob "$outdir/05_cleaned_data/*.bed" || return 1
-    assert_nonempty_glob "$outdir/05_cleaned_data/*.bim" || return 1
-    assert_nonempty_glob "$outdir/05_cleaned_data/*.fam" || return 1
+    assert_file_nonempty "$outdir/05_cleaned_data/${prefix}_final.bed" || return 1
+    assert_file_nonempty "$outdir/05_cleaned_data/${prefix}_final.bim" || return 1
+    assert_file_nonempty "$outdir/05_cleaned_data/${prefix}_final.fam" || return 1
 }
 
 assert_snp_common_outputs() {
     local outdir="$1"
-    assert_cleaned_plink_outputs "$outdir" || return 1
+    local prefix="$2"
+    assert_cleaned_plink_outputs "$outdir" "$prefix" || return 1
     assert_file_nonempty "$outdir/06_report/qc_report.pdf" || return 1
     assert_file_nonempty "$outdir/06_report/qc_attrition_table.tsv" || return 1
     assert_file_nonempty "$outdir/06_report/qc_thresholds.tsv" || return 1
@@ -242,14 +244,14 @@ assert_snp_common_outputs() {
 validate_snp_array_outputs() {
     local outdir="results/test_snp_variant_only"
     echo "Validating SNP-array variant-only outputs..."
-    assert_snp_common_outputs "$outdir" || return 1
+    assert_snp_common_outputs "$outdir" "toy" || return 1
     assert_nonempty_glob "$outdir/04_variant_qc/tables/*summary.txt" || return 1
 }
 
 validate_snp_full_outputs() {
     local outdir="results/test_snp_full"
     echo "Validating SNP-array full QC outputs..."
-    assert_snp_common_outputs "$outdir" || return 1
+    assert_snp_common_outputs "$outdir" "toy" || return 1
     assert_file_nonempty "$outdir/06_report/qc_per_sample.tsv" || return 1
     assert_file_nonempty "$outdir/03_sample_qc/tables/sample_callrate_removed.txt" || return 1
     assert_file_nonempty "$outdir/03_sample_qc/tables/relatedness_remove.txt" || return 1
