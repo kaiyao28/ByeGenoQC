@@ -1,13 +1,69 @@
 # ByeGenoQC
 
+[![CI Smoke Tests](https://github.com/kaiyao28/ByeGenoQC/actions/workflows/ci-smoke-tests.yml/badge.svg)](https://github.com/kaiyao28/ByeGenoQC/actions/workflows/ci-smoke-tests.yml)
+[![Docker](https://img.shields.io/badge/docker-ghcr.io%2Fkaiyao28%2Fbyegenoqc-blue)](https://github.com/kaiyao28/ByeGenoQC/pkgs/container/byegenoqc)
+[![Nextflow](https://img.shields.io/badge/Nextflow-DSL2-24A148)](https://www.nextflow.io/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
+**Reproducible genetic QC for SNP arrays and sequencing-derived data.**
+
 ByeGenoQC is a modular Nextflow DSL2 workflow collection for genetic quality control. It provides SNP-array QC workflows, sequencing QC entry points, containerized execution, and reports that record the files, thresholds, and QC summaries used in a run.
+
+## What It Does
+
+- SNP-array inspect-first QC to review metric distributions before filtering.
+- SNP-array sample and variant filtering with auditable exclusion lists.
+- FASTQ, BAM/CRAM, and VCF sequencing QC entry points.
+- Containerized Docker/Singularity execution for local and HPC environments.
+- Reports, attrition tables, summaries, and threshold records for review.
+
+## How It Works
+
+```mermaid
+flowchart LR
+    A["Input data"] --> B{"Choose workflow"}
+
+    B --> C["SNP array QC<br/>PLINK .bed/.bim/.fam"]
+    B --> D["Sequencing QC<br/>FASTQ / BAM/CRAM / VCF"]
+
+    C --> C1["Inspect first<br/>QC distributions + threshold template"]
+    C1 --> C2["Run filtering<br/>sample QC + variant QC"]
+    C2 --> C3["Outputs<br/>clean PLINK + PDF report + exclusion lists"]
+
+    D --> D1{"Entry point"}
+    D1 --> D2["FASTQ<br/>raw-read QC"]
+    D1 --> D3["BAM/CRAM<br/>aligned-read QC"]
+    D1 --> D4["VCF<br/>variant/genotype QC"]
+    D2 --> D5["Outputs<br/>HTML report + summaries"]
+    D3 --> D5
+    D4 --> D5
+
+    classDef input fill:#e8f4ff,stroke:#4f8fcf,color:#17324d;
+    classDef snp fill:#eef9f0,stroke:#4a9b63,color:#17351f;
+    classDef seq fill:#fff4e5,stroke:#c98221,color:#3d2605;
+    classDef output fill:#f3edff,stroke:#7d5cc6,color:#2b1b4d;
+    class A,B,D1 input;
+    class C,C1,C2 snp;
+    class D,D2,D3,D4 seq;
+    class C3,D5 output;
+```
 
 The repository currently provides workflows for two broad data types:
 
-| Workflow | Input | Use case |
-|----------|-------|----------|
-| `snp_array_qc/` | PLINK binary (`.bed/.bim/.fam`) | SNP arrays, GWAS datasets |
-| `wgs_wes_qc/` | FASTQ, BAM/CRAM, or VCF | Sequencing QC entry points after read generation, alignment, or variant calling |
+| Workflow | Inputs | Outputs |
+|----------|--------|---------|
+| `snp_array_qc/` | PLINK binary (`.bed/.bim/.fam`) | Clean PLINK files, PDF report, thresholds, attrition tables, exclusion lists |
+| `wgs_wes_qc/` | FASTQ, BAM/CRAM, or VCF | HTML report, input/QC summaries, filtered/indexed VCF outputs where applicable |
+
+Run the demo smoke tests:
+
+```bash
+git clone https://github.com/kaiyao28/ByeGenoQC.git
+cd ByeGenoQC
+bash test_data/run_smoke_tests.sh
+```
+
+For setup help, start with the [Setup Guide](docs/setup.md). For documentation by task, see the [Documentation Index](docs/index.md).
 
 The SNP-array workflow performs array sample and variant QC. The sequencing workflow has separate entry points: FASTQ mode performs raw-read QC only, BAM/CRAM mode performs sequencing sample QC on aligned reads, and VCF mode performs variant/genotype QC on called variants. It does not perform alignment, variant calling, or joint genotyping from FASTQ input. QC modules can be toggled independently, and thresholds can be overridden from the command line.
 
@@ -23,8 +79,8 @@ The outputs are intended to make QC decisions easier to audit: reports include a
 
 | Workflow | DAG |
 |----------|-----|
-| SNP Array QC | [snp_array_dag.png](assets/snp_array_dag.png) |
-| Sequencing QC entry points | [wgs_dag.png](assets/wgs_dag.png) |
+| SNP Array QC | Generated as `assets/snp_array_dag.png` |
+| Sequencing QC entry points | Generated as `assets/wgs_dag.png` |
 
 To regenerate the diagrams:
 
@@ -237,6 +293,8 @@ BAM/CRAM indexes are required. If no explicit index column is provided, the work
 
 ## Reports
 
+See [example outputs](docs/example_outputs/README.md) for smoke-test report and table paths.
+
 **SNP Array report** (`06_report/qc_report.pdf`):
 
 | Metric | Value |
@@ -295,8 +353,29 @@ All thresholds have defaults and can be overridden on the command line:
 
 ## Documentation
 
-- [Setup Guide](docs/setup.md)
-- [SNP Array QC Manual](docs/snp_array_qc_manual.md)
-- [WGS/WES QC Manual](docs/wgs_wes_qc_manual.md)
-- [References](docs/references.md)
-- [Test Data](test_data/README.md)
+For the full documentation map, see [docs/index.md](docs/index.md).
+
+| Need | Read |
+|------|------|
+| Install and choose an execution profile | [Setup Guide](docs/setup.md) |
+| Run SNP-array inspect-first QC | [SNP Array QC Manual](docs/snp_array_qc_manual.md) |
+| Run FASTQ/BAM/CRAM/VCF sequencing QC | [WGS/WES QC Manual](docs/wgs_wes_qc_manual.md) |
+| Follow a worked example | [Tutorial](docs/TUTORIAL.md) |
+| Understand generated files | [Example Outputs](docs/example_outputs/README.md) |
+| Check assumptions and citations | [References](docs/references.md) |
+
+## Repository Map
+
+Most users only need this README, [docs/setup.md](docs/setup.md), and the relevant workflow directory.
+
+```text
+ByeGenoQC/
+|-- snp_array_qc/      # SNP-array inspect and QC workflows
+|-- wgs_wes_qc/        # FASTQ/BAM/CRAM/VCF sequencing QC entry points
+|-- conf/              # Docker, Singularity, SLURM, and LSF profiles
+|-- containers/        # Docker image definition
+|-- test_data/         # synthetic data and smoke-test runner
+|-- docs/              # manuals, tutorials, setup, examples
+|-- assets/            # DAGs and visual assets
+`-- nextflow.config    # default parameters and profiles
+```

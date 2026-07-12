@@ -9,6 +9,32 @@ threshold is configurable without editing process code.
 The module order follows Anderson et al. 2010 (Nature Protocols), which is the most-cited
 reference for GWAS quality control procedures.
 
+## Conceptual Flow
+
+```mermaid
+flowchart TD
+    A["PLINK input<br/>.bed / .bim / .fam"] --> B["Duplicate and imputation checks"]
+    B --> C["Sample missingness"]
+    C --> D["Sex check"]
+    D --> E["Heterozygosity"]
+    E --> F["Relatedness"]
+    F --> G["Ancestry PCA"]
+    G --> H["Apply sample exclusions"]
+    H --> I["Variant missingness"]
+    I --> J["MAF filter"]
+    J --> K["HWE filter"]
+    K --> L["Final outputs<br/>clean PLINK + PDF report"]
+
+    classDef input fill:#e8f4ff,stroke:#4f8fcf,color:#17324d;
+    classDef sample fill:#eef9f0,stroke:#4a9b63,color:#17351f;
+    classDef variant fill:#fff4e5,stroke:#c98221,color:#3d2605;
+    classDef output fill:#f3edff,stroke:#7d5cc6,color:#2b1b4d;
+    class A input;
+    class B,C,D,E,F,G,H sample;
+    class I,J,K variant;
+    class L output;
+```
+
 ---
 
 ## Before you start

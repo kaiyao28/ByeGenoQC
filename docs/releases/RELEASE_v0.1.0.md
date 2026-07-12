@@ -55,7 +55,7 @@ See [README](https://github.com/kaiyao28/ByeGenoQC#readme) and [Setup Guide](htt
 - [Setup Guide](https://github.com/kaiyao28/ByeGenoQC/blob/main/docs/setup.md)
 - [SNP Array QC Manual](https://github.com/kaiyao28/ByeGenoQC/blob/main/docs/snp_array_qc_manual.md)
 - [WGS/WES QC Manual](https://github.com/kaiyao28/ByeGenoQC/blob/main/docs/wgs_wes_qc_manual.md)
-- [Example Outputs](https://github.com/kaiyao28/ByeGenoQC/blob/main/docs/example_outputs.md)
+- [Example Outputs](https://github.com/kaiyao28/ByeGenoQC/blob/main/docs/example_outputs/README.md)
 - [Input Validation](https://github.com/kaiyao28/ByeGenoQC/blob/main/docs/INPUT_VALIDATION.md)
 - [Alternatives](https://github.com/kaiyao28/ByeGenoQC/blob/main/docs/ALTERNATIVES.md)
 
@@ -74,7 +74,7 @@ docker pull ghcr.io/kaiyao28/genetic-qc:1.1
 
 ### 🤝 Contributing
 
-We welcome bug reports, feature requests, and contributions. See [CONTRIBUTING.md](https://github.com/kaiyao28/ByeGenoQC/blob/main/CONTRIBUTING.md).
+We welcome bug reports, feature requests, and contributions. See [CONTRIBUTING.md](https://github.com/kaiyao28/ByeGenoQC/blob/main/.github/CONTRIBUTING.md).
 
 ### 📄 Citation
 

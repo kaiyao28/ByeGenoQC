@@ -10,6 +10,40 @@
 
 WES and WGS modes share the same entry-point code. In WES mode, `--target_intervals` is required and coverage/depth metrics apply to on-target regions. In WGS mode, no target interval file is required and coverage metrics are interpreted genome-wide.
 
+## Conceptual Flow
+
+```mermaid
+flowchart LR
+    A["Samplesheet + reference"] --> B{"--input_type"}
+
+    B --> C["FASTQ<br/>raw reads"]
+    C --> C1["Input validation"]
+    C1 --> C2["FastQC"]
+    C2 --> O["HTML report<br/>summaries"]
+
+    B --> D["BAM/CRAM<br/>aligned reads + index"]
+    D --> D1["Input validation"]
+    D1 --> D2["Alignment, duplicate,<br/>coverage, contamination,<br/>and sex-check summaries"]
+    D2 --> O
+
+    B --> E["VCF<br/>called variants"]
+    E --> E1["Input validation"]
+    E1 --> E2["Variant statistics,<br/>optional filtering,<br/>merge/index, genotype QC"]
+    E2 --> E3["Filtered/indexed VCF<br/>variant and sample summaries"]
+    E3 --> O
+
+    classDef input fill:#e8f4ff,stroke:#4f8fcf,color:#17324d;
+    classDef fastq fill:#eef9f0,stroke:#4a9b63,color:#17351f;
+    classDef align fill:#fff4e5,stroke:#c98221,color:#3d2605;
+    classDef vcf fill:#f9eeee,stroke:#c65c5c,color:#4d1b1b;
+    classDef output fill:#f3edff,stroke:#7d5cc6,color:#2b1b4d;
+    class A,B input;
+    class C,C1,C2 fastq;
+    class D,D1,D2 align;
+    class E,E1,E2,E3 vcf;
+    class O output;
+```
+
 ## Entry Point Behaviour
 
 | `--input_type` | Required input | Modules that can run | Main outputs |

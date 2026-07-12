@@ -11,8 +11,8 @@ TITLE="ByeGenoQC v0.1.0"
 
 echo "Creating GitHub Release $TAG for $REPO_OWNER/$REPO_NAME..."
 
-# Release notes file should exist at the root
-NOTES_FILE="RELEASE_v0.1.0.md"
+# Release notes file should exist in docs/releases
+NOTES_FILE="docs/releases/RELEASE_v0.1.0.md"
 
 if [ ! -f "$NOTES_FILE" ]; then
     echo "Error: $NOTES_FILE not found"

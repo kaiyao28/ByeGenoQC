@@ -209,6 +209,6 @@ Plink2 (association testing)
 
 ## Getting Started After Choosing ByeGenoQC
 
-See [Setup Guide](setup.md) and [Example Outputs](example_outputs.md) to get started in 30 minutes.
+See [Setup Guide](setup.md) and [Example Outputs](example_outputs/README.md) to get started in 30 minutes.
 
-Questions? Open an [issue](https://github.com/kaiyao28/ByeGenoQC/issues) or check [CONTRIBUTING.md](../CONTRIBUTING.md).
+Questions? Open an [issue](https://github.com/kaiyao28/ByeGenoQC/issues) or check [CONTRIBUTING.md](../.github/CONTRIBUTING.md).

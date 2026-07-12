@@ -441,5 +441,5 @@ nextflow run snp_array_qc/main.nf \
 For more details, see:
 - [Setup Guide](setup.md)
 - [SNP Array Manual](snp_array_qc_manual.md)
-- [Example Outputs](example_outputs.md)
+- [Example Outputs](example_outputs/README.md)
 - [Benchmarks](BENCHMARKS.md)
