@@ -10,6 +10,7 @@ on:
 jobs:
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     permissions:
       contents: read
@@ -80,6 +81,7 @@ jobs:
   smoke-tests:
     runs-on: ubuntu-latest
     needs: lint
+    timeout-minutes: 60
 
     permissions:
       contents: read
@@ -97,7 +99,18 @@ jobs:
       - name: Set up Nextflow
         uses: nextflow-io/setup-nextflow@v2
 
+      - name: Verify Java, Nextflow, and Docker
+        run: |
+          java -version
+          nextflow -version
+          docker --version
+
+      - name: Build Docker image for CI
+        run: docker build -f containers/Dockerfile -t byegenoqc-ci:test .
+
       - name: Run smoke tests
+        env:
+          GENETIC_QC_DOCKER_IMAGE: byegenoqc-ci:test
         run: bash test_data/run_smoke_tests.sh
 
       - name: Upload failure artifacts
@@ -108,6 +121,7 @@ jobs:
           if-no-files-found: ignore
           path: |
             .nextflow.log*
+            .nextflow/
             work/
             results/
             assets/*dag.png

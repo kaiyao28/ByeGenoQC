@@ -1,0 +1,405 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "$id": "https://raw.githubusercontent.com/kaiyao28/ByeGenoQC/main/nextflow_schema.json",
+  "title": "ByeGenoQC pipeline parameters",
+  "description": "Nextflow DSL2 pipeline for SNP-array and sequencing quality control",
+  "type": "object",
+  "definitions": {
+    "input_output_options": {
+      "title": "Input/output options",
+      "type": "object",
+      "fa_icon": "fas fa-terminal",
+      "description": "Define where the pipeline should find input data and save output data.",
+      "required": ["outdir"],
+      "properties": {
+        "outdir": {
+          "type": "string",
+          "format": "directory-path",
+          "description": "The output directory where the results will be saved.",
+          "fa_icon": "fas fa-folder-open"
+        },
+        "publish_dir_mode": {
+          "type": "string",
+          "default": "copy",
+          "description": "Method used to save pipeline results to output directory.",
+          "help_text": "The Nextflow `publishDir` option specifies which intermediate files to save to the output directory. This option tells the pipeline to copy these files.",
+          "enum": ["symlink", "rellink", "link", "copy", "move"],
+          "fa_icon": "fas fa-link"
+        },
+        "keep_intermediate": {
+          "type": "boolean",
+          "default": false,
+          "description": "Retain per-step PLINK/BAM files in output directory.",
+          "fa_icon": "fas fa-save"
+        }
+      }
+    },
+    "snp_array_input": {
+      "title": "SNP Array Input",
+      "type": "object",
+      "description": "PLINK binary input for SNP array QC.",
+      "properties": {
+        "bfile": {
+          "type": "string",
+          "description": "PLINK binary prefix (no extension: .bed/.bim/.fam).",
+          "help_text": "Path to PLINK binary files without the extension. For example, if your files are genotypes.bed/bim/fam, use --bfile genotypes",
+          "fa_icon": "fas fa-dna"
+        },
+        "pheno": {
+          "type": "string",
+          "description": "Optional phenotype file (TSV with FID, IID, pheno columns).",
+          "fa_icon": "fas fa-file"
+        },
+        "reference_panel": {
+          "type": "string",
+          "description": "Optional reference panel prefix for ancestry PCA (PLINK binary format).",
+          "help_text": "Path to reference panel files (e.g., 1000 Genomes). If not provided, PCA uses only study samples.",
+          "fa_icon": "fas fa-globe"
+        },
+        "sample_metadata": {
+          "type": "string",
+          "description": "Optional sample metadata file (TSV with reported_sex, batch, centre).",
+          "fa_icon": "fas fa-file-csv"
+        }
+      }
+    },
+    "wgs_wes_input": {
+      "title": "WGS/WES Input",
+      "type": "object",
+      "description": "Sequencing data input for WGS/WES QC.",
+      "properties": {
+        "input_type": {
+          "type": "string",
+          "default": "bam",
+          "description": "Input data type.",
+          "enum": ["bam", "cram", "vcf"],
+          "fa_icon": "fas fa-file"
+        },
+        "samplesheet": {
+          "type": "string",
+          "description": "Samplesheet CSV with columns: sample,file1",
+          "help_text": "CSV file with sample names and file paths. Format: sample,file1\\nSAMPLE_001,/path/to/file.bam",
+          "fa_icon": "fas fa-table"
+        },
+        "reference_fasta": {
+          "type": "string",
+          "description": "Reference genome FASTA (with .fai index).",
+          "help_text": "Path to reference FASTA file. Must have .fai index created with samtools faidx",
+          "fa_icon": "fas fa-dna"
+        },
+        "target_intervals": {
+          "type": "string",
+          "description": "Target intervals BED file (WES only).",
+          "help_text": "BED file with exome/panel targets. Required for WES mode.",
+          "fa_icon": "fas fa-file"
+        },
+        "gene_bed": {
+          "type": "string",
+          "description": "Optional per-gene coverage BED file.",
+          "fa_icon": "fas fa-file"
+        },
+        "mode": {
+          "type": "string",
+          "default": "wes",
+          "description": "Analysis mode.",
+          "enum": ["wes", "wgs"],
+          "fa_icon": "fas fa-flask"
+        }
+      }
+    },
+    "snp_array_qc_params": {
+      "title": "SNP Array QC Parameters",
+      "type": "object",
+      "description": "Quality control thresholds for SNP array data.",
+      "properties": {
+        "sample_missingness": {
+          "type": "number",
+          "default": 0.02,
+          "description": "Maximum fraction of missing genotypes per sample (0.02 = 2%).",
+          "minimum": 0,
+          "maximum": 1,
+          "fa_icon": "fas fa-percent"
+        },
+        "variant_missingness": {
+          "type": "number",
+          "default": 0.02,
+          "description": "Maximum fraction of missing calls per variant.",
+          "minimum": 0,
+          "maximum": 1,
+          "fa_icon": "fas fa-percent"
+        },
+        "hwe_p": {
+          "type": "number",
+          "default": 1e-6,
+          "description": "Hardy-Weinberg equilibrium p-value threshold.",
+          "help_text": "Variants with p-value below this threshold are removed. 1e-6 is standard for GWAS.",
+          "minimum": 0,
+          "fa_icon": "fas fa-chart-line"
+        },
+        "maf": {
+          "type": "number",
+          "default": 0.01,
+          "description": "Minimum minor allele frequency (0.01 = 1%).",
+          "minimum": 0,
+          "maximum": 0.5,
+          "fa_icon": "fas fa-percent"
+        },
+        "heterozygosity_sd": {
+          "type": "number",
+          "default": 3,
+          "description": "Standard deviations from mean heterozygosity for outlier detection.",
+          "minimum": 0,
+          "fa_icon": "fas fa-sigma"
+        },
+        "relatedness_pi_hat": {
+          "type": "number",
+          "default": 0.1875,
+          "description": "PI_HAT threshold for removing related samples.",
+          "help_text": "0.1875 = between 2nd and 3rd degree relatives; 0.125 = 3rd degree; 0.25 = 2nd degree",
+          "minimum": 0,
+          "maximum": 1,
+          "fa_icon": "fas fa-link"
+        },
+        "sex_check_f_lower_female": {
+          "type": "number",
+          "default": 0.2,
+          "description": "Maximum F-statistic for females.",
+          "minimum": 0,
+          "maximum": 1,
+          "fa_icon": "fas fa-venus"
+        },
+        "sex_check_f_upper_male": {
+          "type": "number",
+          "default": 0.8,
+          "description": "Minimum F-statistic for males.",
+          "minimum": 0,
+          "maximum": 1,
+          "fa_icon": "fas fa-mars"
+        },
+        "pca_outlier_sd": {
+          "type": "number",
+          "default": 6,
+          "description": "Standard deviations from mean on any PC for ancestry outlier detection.",
+          "minimum": 0,
+          "fa_icon": "fas fa-cube"
+        },
+        "ld_window": {
+          "type": "integer",
+          "default": 200,
+          "description": "LD pruning window size (kb).",
+          "minimum": 1,
+          "fa_icon": "fas fa-window-maximize"
+        },
+        "ld_step": {
+          "type": "integer",
+          "default": 50,
+          "description": "LD pruning step size (number of variants).",
+          "minimum": 1,
+          "fa_icon": "fas fa-forward"
+        },
+        "ld_r2": {
+          "type": "number",
+          "default": 0.2,
+          "description": "LD pruning r² threshold.",
+          "minimum": 0,
+          "maximum": 1,
+          "fa_icon": "fas fa-chart-scatter"
+        },
+        "n_pcs": {
+          "type": "integer",
+          "default": 20,
+          "description": "Number of principal components to compute.",
+          "minimum": 1,
+          "fa_icon": "fas fa-chart-line"
+        }
+      }
+    },
+    "wgs_wes_qc_params": {
+      "title": "WGS/WES QC Parameters",
+      "type": "object",
+      "description": "Quality control thresholds for sequencing data.",
+      "properties": {
+        "min_mean_depth_wgs": {
+          "type": "integer",
+          "default": 20,
+          "description": "Minimum mean genome-wide depth (WGS).",
+          "minimum": 1,
+          "fa_icon": "fas fa-chart-line"
+        },
+        "min_mean_depth_wes": {
+          "type": "integer",
+          "default": 30,
+          "description": "Minimum mean on-target depth (WES).",
+          "minimum": 1,
+          "fa_icon": "fas fa-chart-line"
+        },
+        "min_target_20x_fraction": {
+          "type": "number",
+          "default": 0.80,
+          "description": "Minimum fraction of target bases with ≥20x coverage.",
+          "minimum": 0,
+          "maximum": 1,
+          "fa_icon": "fas fa-percent"
+        },
+        "min_10x_fraction": {
+          "type": "number",
+          "default": 0.90,
+          "description": "Minimum fraction of bases with ≥10x coverage.",
+          "minimum": 0,
+          "maximum": 1,
+          "fa_icon": "fas fa-percent"
+        },
+        "max_contamination": {
+          "type": "number",
+          "default": 0.03,
+          "description": "Maximum cross-sample contamination (VerifyBamID2).",
+          "minimum": 0,
+          "maximum": 1,
+          "fa_icon": "fas fa-biohazard"
+        },
+        "max_duplication_rate": {
+          "type": "number",
+          "default": 0.20,
+          "description": "Maximum PCR duplicate rate.",
+          "minimum": 0,
+          "maximum": 1,
+          "fa_icon": "fas fa-copy"
+        },
+        "min_call_rate": {
+          "type": "number",
+          "default": 0.95,
+          "description": "Minimum genotype call rate per sample.",
+          "minimum": 0,
+          "maximum": 1,
+          "fa_icon": "fas fa-percent"
+        },
+        "min_gq": {
+          "type": "integer",
+          "default": 20,
+          "description": "Minimum genotype quality score.",
+          "minimum": 0,
+          "fa_icon": "fas fa-star"
+        },
+        "min_dp": {
+          "type": "integer",
+          "default": 10,
+          "description": "Minimum genotype depth.",
+          "minimum": 1,
+          "fa_icon": "fas fa-chart-line"
+        },
+        "variant_qual": {
+          "type": "integer",
+          "default": 30,
+          "description": "Minimum site-level QUAL score.",
+          "minimum": 0,
+          "fa_icon": "fas fa-star"
+        },
+        "variant_filter_method": {
+          "type": "string",
+          "default": "hard_filter",
+          "description": "Variant filtering strategy.",
+          "enum": ["hard_filter", "vqsr"],
+          "fa_icon": "fas fa-filter"
+        },
+        "pca_maf": {
+          "type": "number",
+          "default": 0.05,
+          "description": "Minimum MAF for PCA variant selection.",
+          "minimum": 0,
+          "maximum": 0.5,
+          "fa_icon": "fas fa-percent"
+        }
+      }
+    },
+    "workflow_options": {
+      "title": "Workflow Options",
+      "type": "object",
+      "description": "Control which QC steps to run.",
+      "properties": {
+        "run_variant_qc": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run variant-level QC.",
+          "fa_icon": "fas fa-check"
+        },
+        "run_sample_qc": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run sample-level QC.",
+          "fa_icon": "fas fa-check"
+        },
+        "run_final_report": {
+          "type": "boolean",
+          "default": true,
+          "description": "Generate HTML report.",
+          "fa_icon": "fas fa-file-alt"
+        },
+        "chroms": {
+          "type": "string",
+          "default": "1-22",
+          "description": "Chromosomes to process (e.g., 1-22, 1,2,22).",
+          "fa_icon": "fas fa-dna"
+        },
+        "sample_qc_scope": {
+          "type": "string",
+          "default": "auto",
+          "description": "Sample QC scope guard.",
+          "enum": ["auto", "genome_wide", "provisional", "skip"],
+          "help_text": "auto = genome_wide if all 22 autosomes present, else provisional; genome_wide = force final; provisional = flag as not suitable for filtering; skip = skip sample QC",
+          "fa_icon": "fas fa-cogs"
+        }
+      }
+    },
+    "resource_options": {
+      "title": "Resource Options",
+      "type": "object",
+      "description": "Runtime resource allocation.",
+      "properties": {
+        "max_memory": {
+          "type": "string",
+          "default": "128.GB",
+          "description": "Maximum memory allocation.",
+          "pattern": "^\\d+(\\.\\d+)?\\s*(B|KB|MB|GB|TB)$",
+          "fa_icon": "fas fa-memory"
+        },
+        "max_cpus": {
+          "type": "integer",
+          "default": 16,
+          "description": "Maximum CPU cores.",
+          "minimum": 1,
+          "fa_icon": "fas fa-microchip"
+        },
+        "max_time": {
+          "type": "string",
+          "default": "240.h",
+          "description": "Maximum wall-clock time.",
+          "pattern": "^\\d+(\\.\\d+)?\\s*(s|m|h|d)$",
+          "fa_icon": "fas fa-clock"
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "$ref": "#/definitions/input_output_options"
+    },
+    {
+      "$ref": "#/definitions/snp_array_input"
+    },
+    {
+      "$ref": "#/definitions/wgs_wes_input"
+    },
+    {
+      "$ref": "#/definitions/snp_array_qc_params"
+    },
+    {
+      "$ref": "#/definitions/wgs_wes_qc_params"
+    },
+    {
+      "$ref": "#/definitions/workflow_options"
+    },
+    {
+      "$ref": "#/definitions/resource_options"
+    }
+  ]
+}
