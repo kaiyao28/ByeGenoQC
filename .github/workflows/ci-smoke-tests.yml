@@ -1,0 +1,113 @@
+name: CI Smoke Tests
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Nextflow
+        uses: nextflow-io/setup-nextflow@v2
+
+      - name: Check Bash syntax
+        run: |
+          set -euo pipefail
+          find . \
+            -path ./.git -prune -o \
+            -type f -name '*.sh' -print0 |
+          xargs -0 -n1 bash -n
+
+      - name: Run ShellCheck
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+          find . \
+            -path ./.git -prune -o \
+            -type f -name '*.sh' -print0 |
+          xargs -0 shellcheck --severity=error --shell=bash
+
+      - name: Validate workflow YAML
+        run: |
+          set -euo pipefail
+          find .github/workflows \
+            -type f \( -name '*.yml' -o -name '*.yaml' \) -print0 |
+          xargs -0 ruby -e 'require "yaml"; ARGV.each { |path| YAML.load_file(path); puts "YAML OK: #{path}" }'
+
+      - name: Validate Nextflow config and workflow previews
+        run: |
+          set -euo pipefail
+          nextflow config -flat > /tmp/byegenoqc-nextflow-config.txt
+          nextflow run snp_array_qc/main.nf \
+            --bfile test_data/snp_array/toy \
+            --run_variant_qc false \
+            --run_sample_qc false \
+            --run_final_report false \
+            --outdir results/lint_snp_array \
+            -preview \
+            -ansi-log false
+          nextflow run wgs_wes_qc/main.nf \
+            --input_type vcf \
+            --samplesheet test_data/wgs_wes/samplesheet_vcf.csv \
+            --reference_fasta test_data/reference/mini.fa \
+            --mode wgs \
+            --chroms 22 \
+            --run_variant_qc false \
+            --run_sample_qc false \
+            --run_final_report false \
+            --outdir results/lint_wgs_wes \
+            -preview \
+            -ansi-log false
+
+  smoke-tests:
+    runs-on: ubuntu-latest
+    needs: lint
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Nextflow
+        uses: nextflow-io/setup-nextflow@v2
+
+      - name: Run smoke tests
+        run: bash test_data/run_smoke_tests.sh
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-test-failure-artifacts
+          if-no-files-found: ignore
+          path: |
+            .nextflow.log*
+            work/
+            results/
+            assets/*dag.png

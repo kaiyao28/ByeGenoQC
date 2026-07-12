@@ -50,7 +50,7 @@ Reference for all PLINK commands used in the SNP array pipeline:
 
 ---
 
-## WGS / WES QC
+## Sequencing QC
 
 **McKenna A, Hanna M, Banks E, et al. (2010)**
 The Genome Analysis Toolkit: A MapReduce framework for analyzing next-generation DNA
@@ -58,16 +58,18 @@ sequencing data.
 *Genome Research*, 20(9): 1297–1303.
 https://doi.org/10.1101/gr.107524.110
 
-Original GATK paper. The variant annotation thresholds used in this pipeline (QD, FS,
-MQ, MQRankSum, ReadPosRankSum) are documented in the GATK framework.
+Original GATK paper. The VCF filtering annotations used by the sequencing VCF
+entry point (QD, FS, MQ, MQRankSum, ReadPosRankSum) are documented in the GATK
+framework.
 
 ---
 
 **GATK Best Practices for germline short variant discovery**
 https://gatk.broadinstitute.org/hc/en-us/articles/360035894711-About-the-GATK-Best-Practices
 
-The authoritative pipeline reference for WGS/WES variant calling. Covers BQSR, variant
-calling with HaplotypeCaller, joint genotyping, VQSR, and hard filtering.
+Authoritative context for upstream germline short-variant discovery and for
+interpreting downstream hard-filtering/VQSR choices. ByeGenoQC does not run
+alignment, HaplotypeCaller, or joint genotyping.
 
 ---
 
@@ -121,7 +123,7 @@ mosdepth: quick coverage calculation for genomes and exomes.
 *Bioinformatics*, 34(5): 867–868.
 https://doi.org/10.1093/bioinformatics/btx699
 
-Fast, memory-efficient coverage calculation tool used for WGS/WES coverage QC.
+Fast, memory-efficient coverage calculation tool used for BAM/CRAM coverage QC.
 
 ---
 
@@ -131,7 +133,7 @@ Twelve years of SAMtools and BCFtools.
 *GigaScience*, 10(2): giab008.
 https://doi.org/10.1093/gigascience/giab008
 
-Used throughout the WGS/WES pipeline for VCF statistics, filtering, and format conversion.
+Used by the VCF entry point for VCF statistics, filtering, indexing, and format conversion.
 
 ---
 

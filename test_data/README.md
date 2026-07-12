@@ -20,13 +20,21 @@ bash test_data/run_smoke_tests.sh
 # Run one test at a time
 bash test_data/run_smoke_tests.sh --test snp_array   # SNP array: variant QC only
 bash test_data/run_smoke_tests.sh --test snp_full    # SNP array: variant + sample QC
-bash test_data/run_smoke_tests.sh --test wgs_wes     # WGS/WES VCF variant QC
+bash test_data/run_smoke_tests.sh --test wgs_wes     # sequencing VCF variant QC
 
 # Profiles
 bash test_data/run_smoke_tests.sh --profile docker
 bash test_data/run_smoke_tests.sh --profile singularity
 bash test_data/run_smoke_tests.sh --profile manual_paths
+
+# Reuse cached Nextflow work when debugging locally
+bash test_data/run_smoke_tests.sh --resume
+GENETIC_QC_RESUME=true bash test_data/run_smoke_tests.sh --test snp_array
 ```
+
+Smoke tests run fresh by default. CI intentionally does not pass `-resume`, so
+each run exercises the current source and Docker image rather than cached
+Nextflow work.
 
 ## What Each Test Exercises
 
@@ -87,7 +95,13 @@ nextflow run snp_array_qc/main.nf \
 
 ---
 
-### WGS/WES (`--test wgs_wes`)
+### Sequencing VCF (`--test wgs_wes`)
+
+Parser regression fixtures in `test_data/wgs_wes/`:
+
+- `samplesheet_vcf_duplicate_sample.csv`: duplicate `sample` IDs.
+- `samplesheet_vcf_missing_file.csv`: referenced VCF does not exist.
+- `samplesheet_fastq_ambiguous.csv`: columns populated for incompatible input interpretations.
 
 Input: `test_data/wgs_wes/toy_chr22.vcf` (VCF mode, variant QC only)
 

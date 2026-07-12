@@ -1,0 +1,2 @@
+sample,file1,fastq1,vcf
+ambiguous,test_data/wgs_wes/toy_R1.fastq.gz,test_data/wgs_wes/other_R1.fastq.gz,test_data/wgs_wes/toy_chr22.vcf

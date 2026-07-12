@@ -17,8 +17,8 @@ set -uo pipefail
 
 MODE="${1:-path}"
 LOG="test_results.log"
-IMAGE="${GENETIC_QC_DOCKER_IMAGE:-ghcr.io/kaiyao28/genetic-qc:1.0}"
-SIF="containers/genetic-qc.sif"
+IMAGE="${GENETIC_QC_DOCKER_IMAGE:-ghcr.io/kaiyao28/byegenoqc:1.1.0}"
+SIF="containers/byegenoqc.sif"
 
 # ── colours ───────────────────────────────────────────────────────────────────
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; BOLD='\033[1m'; NC='\033[0m'
@@ -65,7 +65,7 @@ check_tool() {
 
 # ── header ────────────────────────────────────────────────────────────────────
 echo ""
-echo -e "${BOLD}=== Genetic QC Pipeline — Environment Test (mode: ${MODE}) ===${NC}"
+echo -e "${BOLD}=== ByeGenoQC environment test (mode: ${MODE}) ===${NC}"
 echo "$(date)" | tee "$LOG"
 echo "mode: ${MODE}" >> "$LOG"
 echo "" | tee -a "$LOG"

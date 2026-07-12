@@ -1,6 +1,6 @@
 # Setup Guide
 
-This guide explains how to set up the Genetic QC Nextflow pipeline on a laptop, workstation, or HPC cluster.
+This guide explains how to set up ByeGenoQC on a laptop, workstation, or HPC cluster.
 
 The key idea is:
 
@@ -75,7 +75,7 @@ docker info
 Pull the published image:
 
 ```powershell
-docker pull ghcr.io/kaiyao28/genetic-qc:1.0
+docker pull ghcr.io/kaiyao28/byegenoqc:1.1.0
 ```
 
 If this fails with `dockerDesktopLinuxEngine`, Docker Desktop is not running or the Linux/WSL backend is not enabled.
@@ -128,7 +128,7 @@ Back in Ubuntu:
 
 ```bash
 docker version
-docker pull ghcr.io/kaiyao28/genetic-qc:1.0
+docker pull ghcr.io/kaiyao28/byegenoqc:1.1.0
 ```
 
 ### 5. Clone and run the test workflow
@@ -136,8 +136,8 @@ docker pull ghcr.io/kaiyao28/genetic-qc:1.0
 Inside Ubuntu:
 
 ```bash
-git clone https://github.com/kaiyao28/GeneticQC.git
-cd GeneticQC
+git clone https://github.com/kaiyao28/ByeGenoQC.git
+cd ByeGenoQC
 ```
 
 Run the smoke tests:
@@ -145,7 +145,7 @@ Run the smoke tests:
 ```bash
 bash test_data/run_smoke_tests.sh                    # both pipelines
 bash test_data/run_smoke_tests.sh --test snp_array   # SNP array only
-bash test_data/run_smoke_tests.sh --test wgs_wes     # WGS/WES only
+bash test_data/run_smoke_tests.sh --test wgs_wes     # sequencing VCF smoke test
 ```
 
 Each test runs the selected workflow on synthetic toy data in `test_data/` and writes an HTML report to `results/`.
@@ -176,14 +176,14 @@ source ~/.bashrc
 Clone the pipeline:
 
 ```bash
-git clone https://github.com/kaiyao28/GeneticQC.git
-cd GeneticQC
+git clone https://github.com/kaiyao28/ByeGenoQC.git
+cd ByeGenoQC
 ```
 
 Pull the Docker image:
 
 ```bash
-docker pull ghcr.io/kaiyao28/genetic-qc:1.0
+docker pull ghcr.io/kaiyao28/byegenoqc:1.1.0
 ```
 
 Run the smoke tests:
@@ -191,8 +191,36 @@ Run the smoke tests:
 ```bash
 bash test_data/run_smoke_tests.sh                    # both pipelines
 bash test_data/run_smoke_tests.sh --test snp_array   # SNP array only
-bash test_data/run_smoke_tests.sh --test wgs_wes     # WGS/WES only
+bash test_data/run_smoke_tests.sh --test wgs_wes     # sequencing VCF smoke test
 ```
+
+## Docker Image Tags And Reproducibility
+
+The default release image is:
+
+```bash
+docker pull ghcr.io/kaiyao28/byegenoqc:1.1.0
+```
+
+Use release tags such as `1.1.0` for ordinary runs. For exact commit-level
+reproducibility, use a SHA tag produced by CI:
+
+```bash
+nextflow run snp_array_qc/main.nf \
+  --bfile data/raw/genotypes \
+  --docker_image ghcr.io/kaiyao28/byegenoqc:sha-<git-sha> \
+  -profile docker
+```
+
+For a local image built from your checkout:
+
+```bash
+docker build -t byegenoqc:local -f containers/Dockerfile .
+GENETIC_QC_DOCKER_IMAGE=byegenoqc:local bash test_data/run_smoke_tests.sh --test snp_array
+```
+
+The old image name `ghcr.io/kaiyao28/genetic-qc` is still published for
+compatibility. New commands should use `ghcr.io/kaiyao28/byegenoqc`.
 
 ## HPC Cluster Setup
 
@@ -237,21 +265,21 @@ Create or pull a SIF image on shared storage:
 
 ```bash
 mkdir -p containers
-apptainer pull containers/genetic-qc.sif docker://ghcr.io/kaiyao28/genetic-qc:1.0
+apptainer pull containers/byegenoqc.sif docker://ghcr.io/kaiyao28/byegenoqc:1.1.0
 ```
 
 If your cluster uses `singularity` instead of `apptainer`:
 
 ```bash
 mkdir -p containers
-singularity pull containers/genetic-qc.sif docker://ghcr.io/kaiyao28/genetic-qc:1.0
+singularity pull containers/byegenoqc.sif docker://ghcr.io/kaiyao28/byegenoqc:1.1.0
 ```
 
 Make sure `conf/singularity.config` points to the SIF file. The default is:
 
 ```groovy
 process {
-    container = "${projectDir}/containers/genetic-qc.sif"
+    container = "${projectDir}/containers/byegenoqc.sif"
 }
 ```
 
@@ -259,7 +287,7 @@ If the SIF is elsewhere, use an absolute shared path:
 
 ```groovy
 process {
-    container = "/shared/containers/genetic-qc.sif"
+    container = "/shared/containers/byegenoqc.sif"
 }
 ```
 
@@ -279,7 +307,7 @@ nextflow run snp_array_qc/main.nf \
   -resume
 ```
 
-WGS/WES example:
+Sequencing VCF entry-point example:
 
 ```bash
 nextflow run wgs_wes_qc/main.nf \
@@ -470,9 +498,9 @@ bcftools --version | head -1 && gatk --version && mosdepth --version
 On Windows PowerShell without WSL/Git Bash, test the Docker image directly:
 
 ```powershell
-docker run --rm ghcr.io/kaiyao28/genetic-qc:1.0 plink --version
-docker run --rm ghcr.io/kaiyao28/genetic-qc:1.0 bcftools --version
-docker run --rm ghcr.io/kaiyao28/genetic-qc:1.0 gatk --version
+docker run --rm ghcr.io/kaiyao28/byegenoqc:1.1.0 plink --version
+docker run --rm ghcr.io/kaiyao28/byegenoqc:1.1.0 bcftools --version
+docker run --rm ghcr.io/kaiyao28/byegenoqc:1.1.0 gatk --version
 ```
 
 ### Step 2 — Generate test data and run smoke tests
@@ -482,7 +510,6 @@ The synthetic test data is tracked in the repository. If you need to regenerate 
 
 ```bash
 python3 test_data/generate_test_data.py
-rm -f test_data/snp_array/toy.bed test_data/snp_array/toy.bim test_data/snp_array/toy.fam
 ```
 
 Run both pipelines:
@@ -502,7 +529,7 @@ bash test_data/run_smoke_tests.sh --profile manual_paths --test wgs_wes
 
 The test data is designed so QC filters have something to remove:
 SNP array has monomorphic variants (fail MAF) and high-missingness variants (fail callrate).
-WGS/WES VCF has variants with failing site-level flags and samples with low genotype quality.
+The sequencing VCF smoke test has variants with failing site-level flags and samples with low genotype quality.
 
 ## Common Problems
 
@@ -541,7 +568,7 @@ corrupted, or contains a broken layer from a previous failed pull.
 First restart Docker Desktop. Then try:
 
 ```bash
-docker image rm ghcr.io/kaiyao28/genetic-qc:1.0
+docker image rm ghcr.io/kaiyao28/byegenoqc:1.1.0
 docker builder prune
 docker system prune
 ```
@@ -569,7 +596,7 @@ Docker Desktop -> Troubleshoot -> Clean / Purge data
 
 This removes local Docker images and containers, but not your Git repository.
 
-### `docker pull ghcr.io/kaiyao28/genetic-qc:1.0` says denied
+### `docker pull ghcr.io/kaiyao28/byegenoqc:1.1.0` says denied
 
 The GHCR package is private or the image has not been published. Maintainers should check GitHub Actions and package visibility.
 

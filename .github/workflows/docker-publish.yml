@@ -5,12 +5,13 @@ on:
     branches:
       - main
     tags:
-      - "v*"
+      - "v*.*.*"
   workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: kaiyao28/genetic-qc
+  IMAGE_NAME: kaiyao28/byegenoqc
+  LEGACY_IMAGE_NAME: kaiyao28/genetic-qc
 
 jobs:
   build-and-push:
@@ -35,12 +36,16 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+            ${{ env.REGISTRY }}/${{ env.LEGACY_IMAGE_NAME }}
+          # Branch builds publish only sha-* tags.
+          # Version tags such as v1.1.0 publish 1.1.0, 1.1, and latest.
           tags: |
-            type=raw,value=1.1
-            type=raw,value=latest
-            type=sha,prefix=sha-
-            type=ref,event=tag
+            type=sha,prefix=sha-,enable=${{ github.ref_type == 'branch' }}
+            type=semver,pattern={{version}},enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=semver,pattern={{major}}.{{minor}},enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v6

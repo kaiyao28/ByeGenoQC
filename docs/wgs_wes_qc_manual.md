@@ -1,338 +1,289 @@
-# WGS / WES QC Manual
+# Sequencing QC Entry Points Manual
 
 ## Overview
 
-The WGS/WES QC pipeline accepts FASTQ, BAM/CRAM, or VCF input and applies a series of sample-level
-and variant-level quality control steps following GATK Best Practices and gnomAD QC methods.
+`wgs_wes_qc/main.nf` provides three sequencing QC entry points. These are not equivalent full end-to-end workflows:
 
-WES and WGS modes share the same pipeline; the key difference is:
-- **WES**: requires `--target_intervals` BED file; coverage and depth thresholds apply to on-target regions
-- **WGS**: no intervals required; genome-wide coverage is assessed
+- **FASTQ input** validates raw read files and runs FastQC. It does not align reads, mark duplicates, calculate coverage, call variants, or genotype samples.
+- **BAM/CRAM input** expects aligned and indexed reads. It can run aligned-read sample QC: alignment metrics, duplicate metrics, coverage QC, contamination estimation, and sex check. It does not call variants.
+- **VCF input** expects already called variants. It can run variant statistics, optional site/genotype filtering, chromosome merge/indexing, per-sample genotype counts, relatedness, and ancestry PCA. It does not inspect FASTQs or BAM/CRAM read-level metrics.
 
----
+WES and WGS modes share the same entry-point code. In WES mode, `--target_intervals` is required and coverage/depth metrics apply to on-target regions. In WGS mode, no target interval file is required and coverage metrics are interpreted genome-wide.
 
-## Quick start
+## Entry Point Behaviour
 
-### BAM input, WES mode
+| `--input_type` | Required input | Modules that can run | Main outputs |
+|----------------|----------------|----------------------|--------------|
+| `fastq` | FASTQ R1 with optional R2 | input check, FastQC | `fastqc/`, input summaries, final HTML summary |
+| `bam` / `cram` | aligned BAM/CRAM plus index | input check, alignment metrics, duplicate metrics, coverage QC, contamination, sex check | per-sample sequencing QC directories and final HTML summary |
+| `vcf` | called VCF | input check, chromosome selection/indexing, variant calling QC statistics, optional variant filtering, merge, sample variant counts, relatedness, PCA | `variant_qc/`, `variant_calling_qc/`, `cleaned_data/`, optional genotype QC summaries, final HTML summary |
 
-```bash
-nextflow run wgs_wes_qc/main.nf \
-  --input_type bam \
-  --samplesheet assets/example_samplesheet.csv \
-  --reference_fasta data/reference/GRCh38.fa \
-  --target_intervals data/reference/exome_targets.bed \
-  --mode wes \
-  --outdir results/wgs_wes_qc \
-  -profile singularity
-```
+FASTQ mode is suitable for pre-alignment read QC. BAM/CRAM mode is suitable for QC of already aligned sequencing data. VCF mode is suitable for QC of already called variants and genotypes.
 
-### FASTQ input, WGS mode
+## Quick Start
+
+### FASTQ Input: Raw-Read QC Only
 
 ```bash
 nextflow run wgs_wes_qc/main.nf \
   --input_type fastq \
-  --samplesheet samplesheet.csv \
+  --samplesheet samplesheet_fastq.csv \
   --reference_fasta reference.fa \
   --mode wgs \
-  --outdir results/wgs_wes_qc
+  --outdir results/fastq_qc \
+  -profile docker
 ```
 
-### VCF input (post-variant-calling QC only)
+Expected outputs include FastQC HTML/ZIP files, `fastqc_summary.txt`, and the final HTML summary.
+
+### BAM/CRAM Input: Aligned-Read Sample QC
+
+```bash
+nextflow run wgs_wes_qc/main.nf \
+  --input_type bam \
+  --samplesheet samplesheet_bam.csv \
+  --reference_fasta data/reference/GRCh38.fa \
+  --target_intervals data/reference/exome_targets.bed \
+  --mode wes \
+  --outdir results/aligned_read_qc \
+  -profile docker
+```
+
+Expected outputs include alignment, duplicate, coverage, contamination, and sex-check summaries when the corresponding modules are enabled.
+
+### VCF Input: Called-Variant And Genotype QC
 
 ```bash
 nextflow run wgs_wes_qc/main.nf \
   --input_type vcf \
-  --samplesheet samplesheet.csv \
+  --samplesheet samplesheet_vcf.csv \
   --reference_fasta reference.fa \
-  --mode wes \
-  --run_fastqc false \
-  --run_alignment_metrics false \
-  --run_duplicate_metrics false \
-  --run_coverage_qc false \
-  --run_contamination false
+  --mode wgs \
+  --chroms 1-22 \
+  --outdir results/vcf_qc \
+  -profile docker
 ```
 
----
+Expected outputs include variant statistics/filtering summaries, merged/indexed VCF output, sample genotype-count summaries, relatedness/PCA summaries when enabled, and the final HTML report.
 
-## Samplesheet format
+## Samplesheet Format
 
-CSV with columns:
+Samplesheets are CSV files with a required `sample` column. Quoted CSV fields are supported. Sample IDs must be non-empty and unique, and every referenced file must exist before the workflow starts.
 
-```
+Supported formats by `--input_type`:
+
+| `--input_type` | Required data columns | Optional columns | Notes |
+|----------------|-----------------------|------------------|-------|
+| `fastq` | `file1` or `fastq1` | `file2` or `fastq2` | `file2`/`fastq2` is the optional read 2 FASTQ. |
+| `bam` | `file1` or `bam` | `file2`, `index`, or `bai` | If no index column is provided, the workflow checks `<bam>.bai` and `<sample>.bai` style paths. |
+| `cram` | `file1`, `cram`, or legacy `bam` | `file2`, `index`, or `crai` | If no index column is provided, the workflow checks `<cram>.crai` and `<sample>.crai` style paths. |
+| `vcf` | `file1` or `vcf` | none | The VCF may be plain or compressed; downstream modules create indexed working files as needed. |
+
+Rows fail validation if they mix populated columns for another input type, use multiple different values for the same input role, have missing/duplicate sample IDs, or point to missing files.
+
+Generic `file1`/`file2` examples:
+
+```text
 sample,file1,file2
 SAMPLE001,/data/bams/SAMPLE001.bam,/data/bams/SAMPLE001.bam.bai
 SAMPLE002,/data/fastq/SAMPLE002_R1.fastq.gz,/data/fastq/SAMPLE002_R2.fastq.gz
+COHORT1,/data/vcf/cohort.vcf.gz,
 ```
 
-For single-end FASTQ, leave `file2` empty or omit.
+Named-column examples:
 
----
+```text
+sample,fastq1,fastq2
+SAMPLE001,/data/fastq/SAMPLE001_R1.fastq.gz,/data/fastq/SAMPLE001_R2.fastq.gz
 
-## Module reference
+sample,bam,bai
+SAMPLE001,/data/bams/SAMPLE001.bam,/data/bams/SAMPLE001.bam.bai
 
-### 1. Input check
+sample,cram,crai
+SAMPLE001,/data/crams/SAMPLE001.cram,/data/crams/SAMPLE001.cram.crai
 
-**Purpose:** Verify files exist and are indexed. Confirm reference FASTA and target intervals (WES) are accessible.
+sample,vcf
+COHORT1,/data/vcf/cohort.vcf.gz
+```
 
-**Fails if:** Any input file is missing or target intervals absent in WES mode.
+## Module Reference
 
-**Output:** `input_summary.tsv`, `input_check_summary.txt`
+### 1. Input Check
 
----
+**Purpose:** Verify files exist and are indexed where required. Confirm reference FASTA and target intervals are accessible.
+
+**Runs for:** FASTQ, BAM/CRAM, and VCF input.
+
+**Fails if:** Any input file is missing, or target intervals are absent in WES mode.
+
+**Output:** `input_summary.tsv`, `input_check_summary.txt`.
 
 ### 2. FastQC
 
-**Purpose:** Assess raw read quality, adapter content, GC content, and duplication rate.
+**Purpose:** Assess raw read quality, adapter content, GC content, and duplication patterns for FASTQ input.
 
-**Tool:** FastQC
+**Runs for:** FASTQ input only.
 
-**How to disable:** `--run_fastqc false` (automatically skipped for BAM/VCF input)
+**Tool:** FastQC.
 
-**Output:** `*.fastqc.html`, `fastqc_summary.txt`
+**How to disable:** `--run_fastqc false`.
 
-**Interpretation:**
-- Per-base quality below Q30 → consider trimming
-- Adapter content > 10% → check adapter configuration
-- Unusual GC content → library preparation issue or contamination
+**Output:** `*.fastqc.html`, `*.fastqc.zip`, `fastqc_summary.txt`.
 
----
+**Interpretation:** Low per-base quality, high adapter content, or unusual GC content should be reviewed before alignment.
 
-### 3. Alignment metrics
+### 3. Alignment Metrics
 
-**Purpose:** Compute mapping rate, properly paired reads, chimeric reads, and insert size distribution.
+**Purpose:** Compute mapping rate, properly paired reads, chimeric reads, and insert size distribution for aligned BAM/CRAM input.
 
-**Tools:** `samtools flagstat`, Picard `CollectAlignmentSummaryMetrics`, `CollectInsertSizeMetrics`
+**Runs for:** BAM/CRAM input only.
 
-**How to disable:** `--run_alignment_metrics false`
+**Tools:** `samtools flagstat`, Picard `CollectAlignmentSummaryMetrics`, Picard `CollectInsertSizeMetrics`.
 
-**Output:** `flagstat.txt`, `alignment_summary_metrics.txt`, `insert_size_metrics.txt`, `alignment_summary.txt`
+**How to disable:** `--run_alignment_metrics false`.
 
-**Interpretation:**
-- Mapping rate < 95% → wrong reference genome or severe contamination
-- Narrow insert size (< 100 bp mean) → over-fragmented library
-- High chimeric rate → library preparation artefacts
+**Output:** `flagstat.txt`, `alignment_summary_metrics.txt`, `insert_size_metrics.txt`, `alignment_summary.txt`.
 
----
+### 4. Duplicate Metrics
 
-### 4. Duplicate metrics
+**Purpose:** Estimate PCR/optical duplication rate from BAM/CRAM input.
 
-**Purpose:** Estimate PCR/optical duplication rate and mark duplicates for downstream tools.
+**Runs for:** BAM/CRAM input only.
 
-**Tool:** Picard `MarkDuplicates`
+**Tool:** Picard `MarkDuplicates`.
 
-**Default threshold:** `params.max_duplication_rate = 0.20` (20%)
+**Default threshold:** `params.max_duplication_rate = 0.20`.
 
-**How to change:**
-```bash
-nextflow run main.nf --max_duplication_rate 0.30
-```
+**How to disable:** `--run_duplicate_metrics false`.
 
-**How to disable:** `--run_duplicate_metrics false`
-
-**Output:** `marked_duplicates.bam`, `duplicate_metrics.txt`, `duplicate_summary.txt`
-
-**Interpretation:**
-- WGS > 20%: unusually high, investigate input DNA amount
-- WES > 50%: may be expected for very tight capture kits; adjust threshold accordingly
-- Estimated library size: very low values suggest poor library complexity
-
----
+**Output:** duplicate metrics and summary files. This entry point reports duplication metrics; it is not a replacement for a full production alignment/calling workflow.
 
 ### 5. Coverage QC
 
-**Purpose:** Verify mean sequencing depth and fraction of bases/targets covered at ≥10x, ≥20x, ≥30x.
+**Purpose:** Estimate mean sequencing depth and coverage fractions for BAM/CRAM input.
 
-**Tool:** mosdepth
+**Runs for:** BAM/CRAM input only.
+
+**Tool:** mosdepth.
 
 **Default thresholds:**
-- `params.min_mean_depth_wgs = 20` (WGS)
-- `params.min_mean_depth_wes = 30` (WES)
-- `params.min_target_20x_fraction = 0.80` (80% of targets ≥20x)
 
-**How to change:**
-```bash
-nextflow run main.nf --min_mean_depth_wes 40 --min_target_20x_fraction 0.90
-```
+- `params.min_mean_depth_wgs = 20`
+- `params.min_mean_depth_wes = 30`
+- `params.min_target_20x_fraction = 0.80`
 
-**How to disable:** `--run_coverage_qc false`
+**How to disable:** `--run_coverage_qc false`.
 
-**Output:** `coverage_summary.txt`, `coverage_metrics.txt`, `coverage_plot.png`
+**Output:** `coverage_summary.txt`, coverage metrics, optional plots.
 
----
+### 6. Contamination Check
 
-### 6. Contamination check
+**Purpose:** Estimate cross-sample contamination from aligned reads.
 
-**Purpose:** Estimate fraction of cross-sample contamination using VerifyBamID2.
+**Runs for:** BAM/CRAM input only.
 
-**Tool:** VerifyBamID2 (SVD method, no panel required)
+**Tool:** VerifyBamID2, with a GATK fallback where configured by the module.
 
-**Default threshold:** `params.max_contamination = 0.03` (3%)
+**Default threshold:** `params.max_contamination = 0.03`.
 
-**How to change:**
-```bash
-nextflow run main.nf --max_contamination 0.02
-```
+**How to disable:** `--run_contamination false`.
 
-**How to disable:** `--run_contamination false`
+**Output:** contamination result and summary files.
 
-**Output:** `contamination.selfSM`, `contamination_summary.txt`
+### 7. Sex Check
 
-**Interpretation:**
-- FREEMIX > 0.03: contaminated sample, exclude from analysis
-- FREEMIX 0.01–0.03: borderline; may still be usable depending on analysis
+**Purpose:** Infer biological sex from X and Y chromosome coverage ratios in aligned-read input.
 
----
+**Runs for:** BAM/CRAM input only.
 
-### 7. Sex check
+**How to disable:** `--run_sex_check_wgs false`.
 
-**Purpose:** Infer biological sex from X and Y chromosome coverage ratios.
+**Output:** `sex_check_results.txt`, `sex_check_summary.txt`.
 
-**Method:**
-- Compute mean depth on chr1 (autosomal reference), chrX, chrY
-- Female: X/auto ≈ 1.0, Y/auto ≈ 0
-- Male: X/auto ≈ 0.5, Y/auto ≈ 0.5
+### 8. Variant Calling QC Statistics
 
-**How to disable:** `--run_sex_check_wgs false`
+**Purpose:** Compute Ti/Tv ratio, SNP/indel counts, heterozygous/homozygous ratios, and per-sample variant statistics from an existing VCF.
 
-**Output:** `sex_check_results.txt`, `sex_check_summary.txt`
+**Runs for:** VCF input only.
 
----
+**Tool:** `bcftools stats`.
 
-### 8. Variant calling QC
+**How to disable:** `--run_variant_calling_qc false`.
 
-**Purpose:** Compute Ti/Tv ratio, SNP/indel counts, het/hom ratio, and per-sample variant statistics.
+**Important:** This module evaluates called variants. It does not perform variant calling.
 
-**Tool:** `bcftools stats`
+### 9. Variant Filtering
 
-**How to disable:** `--run_variant_calling_qc false`
+**Purpose:** Apply site-level and genotype-level filters to an existing VCF.
 
-**Expected Ti/Tv values:**
-| Scope | Expected Ti/Tv |
-|-------|---------------|
-| WGS (whole genome) | 2.0 – 2.1 |
-| WES (coding regions) | 2.8 – 3.0 |
-| dbSNP variants only | ~2.0 |
+**Runs for:** VCF input only when `--run_variant_filtering true`.
 
-Values outside these ranges suggest calling artefacts.
+**Method:** `params.variant_filter_method = "hard_filter"` by default; VQSR requires suitable training resources and a cohort large enough for that method.
 
----
+**How to disable:** `--run_variant_filtering false`.
 
-### 9. Variant filtering
+### 10. Sample Variant Counts
 
-**Purpose:** Apply site-level and genotype-level filters to remove low-quality variants.
+**Purpose:** Compute per-sample genotype call rate from the VCF and flag samples with low call rate.
 
-**Method:** `params.variant_filter_method = "hard_filter"` (default) or `"vqsr"`
+**Runs for:** VCF input only when sample-level QC is enabled.
 
-**Hard-filter thresholds (SNPs):**
-```
-QD < 2.0       QualByDepth: normalised variant quality
-FS > 60.0      FisherStrand: strand bias
-MQ < 40.0      RMSMappingQuality
-MQRankSum < -12.5
-ReadPosRankSum < -8.0
-QUAL < 30
-```
+**Default threshold:** `params.min_call_rate = 0.95`.
 
-**Hard-filter thresholds (indels):**
-```
-QD < 2.0
-FS > 200.0
-ReadPosRankSum < -20.0
-QUAL < 30
-```
+**How to disable:** `--run_sample_variant_counts false`.
 
-**Genotype filters:**
-```
-GQ < params.min_gq (default 20)
-DP < params.min_dp (default 10)
-```
-
-**How to change any filter:**
-```bash
-nextflow run main.nf --snp_qd 3.0 --min_gq 30
-```
-
-**How to disable:** `--run_variant_filtering false`
-
-**VQSR mode:** Set `--variant_filter_method vqsr` and provide training resource VCFs:
-```bash
-nextflow run main.nf \
-  --variant_filter_method vqsr \
-  --vqsr_hapmap /path/hapmap.vcf \
-  --vqsr_omni /path/omni.vcf \
-  --vqsr_1000g /path/1000G.vcf \
-  --vqsr_dbsnp /path/dbsnp.vcf
-```
-
----
-
-### 10. Sample variant counts
-
-**Purpose:** After genotype filtering, compute per-sample call rate and flag samples with low call rate.
-
-**Default threshold:** `params.min_call_rate = 0.95` (95%)
-
-**How to change:**
-```bash
-nextflow run main.nf --min_call_rate 0.90
-```
-
-**How to disable:** `--run_sample_variant_counts false`
-
-**Output:** `sample_variant_counts.tsv`, `sample_count_outliers.txt`
-
----
+**Output:** `sample_variant_counts.tsv`, `sample_count_outliers.txt`.
 
 ### 11. Relatedness
 
 **Purpose:** Detect related or duplicate sample pairs from the VCF.
 
-**Tool:** `bcftools +relatedness2`
+**Runs for:** VCF input only when sample-level QC is enabled.
 
-**Default threshold:** `params.relatedness_pi_hat = 0.1875`
+**Tool:** `bcftools +relatedness2`.
 
-**How to disable:** `--run_relatedness_wgs false`
+**Default threshold:** `params.relatedness_pi_hat = 0.1875`.
 
----
+**How to disable:** `--run_relatedness_wgs false`.
 
 ### 12. Ancestry PCA
 
-**Purpose:** PCA on high-quality, LD-pruned, common biallelic SNPs extracted from the VCF.
+**Purpose:** Run PCA on high-quality, LD-pruned, common biallelic SNPs extracted from the VCF.
 
-**Tool:** PLINK2 with `--pca`
+**Runs for:** VCF input only when sample-level QC is enabled.
 
-**Default threshold:** `params.pca_outlier_sd = 6`
+**Tool:** PLINK2 with `--pca`.
 
-**How to disable:** `--run_ancestry_pca_wgs false`
+**Default threshold:** `params.pca_outlier_sd = 6`.
 
----
+**How to disable:** `--run_ancestry_pca_wgs false`.
 
-## Output structure
+## Output Structure
 
-```
+```text
 results/wgs_wes_qc/
-├── fastqc/                 # FastQC reports
-├── alignment_metrics/      # samtools and Picard outputs per sample
-├── duplicate_metrics/      # marked BAMs and duplication reports
-├── coverage_qc/            # mosdepth coverage metrics
-├── contamination/          # VerifyBamID2 results
-├── sex_check/              # sex inference results
-├── variant_calling_qc/     # bcftools stats outputs
-├── cleaned_data/           # filtered VCFs
-├── qc_tables/              # summary TSVs
-├── qc_plots/               # PNG plots
-├── logs/                   # pipeline logs
-└── wgs_wes_final_report.html  # complete HTML report
+├── fastqc/                    # FASTQ mode only
+├── alignment_metrics/         # BAM/CRAM mode only
+├── duplicate_metrics/         # BAM/CRAM mode only
+├── coverage_qc/               # BAM/CRAM mode only
+├── contamination/             # BAM/CRAM mode only
+├── sex_check/                 # BAM/CRAM mode only
+├── variant_qc/                # VCF mode chromosome outputs
+├── variant_calling_qc/        # VCF mode bcftools stats outputs
+├── cleaned_data/              # VCF mode merged/filtered VCFs
+├── wgs_wes_qc_summary.tsv     # final summary table
+├── wgs_wes_thresholds.tsv     # run settings and thresholds
+└── wgs_wes_final_report.html  # final HTML report
 ```
 
----
+Only directories relevant to the selected `--input_type` are expected.
 
-## Common issues
+## Common Issues
 
 | Symptom | Likely cause | Solution |
-|---------|-------------|---------|
-| Coverage FAIL for all samples | Wrong target intervals | Confirm BED coordinate system (0-based) matches BAM |
-| Very high contamination | Sample mixture or labelling error | Investigate sample provenance |
-| Ti/Tv < 1.5 | Calling artefacts or no reference | Check GATK parameters and reference genome |
-| Low call rate after genotype filter | Too stringent GQ/DP | Try `--min_gq 10 --min_dp 5` for lower-coverage WES |
-| VQSR fails | Cohort too small | Use `--variant_filter_method hard_filter` instead |
+|---------|--------------|----------|
+| FASTQ mode only produces FastQC output | Expected behaviour | Use BAM/CRAM after alignment, or VCF after variant calling, for downstream QC |
+| Coverage fails for all BAM/CRAM samples | Wrong target intervals or reference mismatch | Confirm BED coordinate system and reference build |
+| Ti/Tv is unexpectedly low in VCF mode | Calling artefacts, wrong reference, or non-standard variant set | Check the upstream caller, reference genome, and VCF contents |
+| Low call rate after genotype filter | GQ/DP thresholds too stringent for the data | Consider whether lower thresholds are scientifically justified |
+| VQSR fails | Cohort too small or missing resources | Use hard filtering unless VQSR assumptions are met |

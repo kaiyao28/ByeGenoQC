@@ -1,5 +1,5 @@
 # =============================================================================
-#  Genetic QC Pipeline — Conda/Mamba environment
+#  ByeGenoQC — Conda/Mamba environment
 # =============================================================================
 #  Use this when Docker/Singularity is not available (e.g. local development).
 #

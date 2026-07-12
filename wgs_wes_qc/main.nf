@@ -1,12 +1,12 @@
 #!/usr/bin/env nextflow
 /*
 ================================================================================
-  WGS / WES QC Pipeline - main.nf
+  Sequencing QC entry points - main.nf
 ================================================================================
   Workflow phases:
     01  Input validation
-    02  Variant-level QC   (chromosome-scoped VCF QC/filtering)
-    03  Sample-level QC    (genome-wide BAM/CRAM and merged-VCF QC)
+    02  VCF-level QC       (chromosome-scoped QC/filtering for called variants)
+    03  Input-specific QC  (FASTQ read QC, BAM/CRAM sample QC, or VCF genotype QC)
     04  Final report
 ================================================================================
 */
@@ -23,6 +23,9 @@ include { CONTAMINATION_CHECK   } from './modules/contamination_check'
 include { SEX_CHECK             } from './modules/sex_check'
 include { VARIANT_CALLING_QC    } from './modules/variant_calling_qc'
 include { VARIANT_FILTERING     } from './modules/variant_filtering'
+include { SELECT_CHROMOSOME     } from './modules/select_chromosome'
+include { INDEX_CHROM_VCF       } from './modules/index_chrom_vcf'
+include { INDEX_INPUT_VCF       } from './modules/index_input_vcf'
 include { SAMPLE_VARIANT_COUNTS } from './modules/sample_variant_counts'
 include { RELATEDNESS           } from './modules/relatedness'
 include { PCA_VARIANT_SELECTION } from './modules/pca_variant_selection'
@@ -60,20 +63,138 @@ def validateParams() {
     if (!["auto","genome_wide","provisional","skip"].contains(params.sample_qc_scope)) {
         error "ERROR: --sample_qc_scope must be one of: auto, genome_wide, provisional, skip"
     }
+    if (!file(params.samplesheet).exists()) {
+        error "ERROR: samplesheet does not exist: ${params.samplesheet}"
+    }
+    if (!file(params.samplesheet).text.trim()) {
+        error "ERROR: samplesheet is empty: ${params.samplesheet}"
+    }
 }
 
-def parseSamplesheet(samplesheet_path) {
-    def samples = []
-    def lines = file(samplesheet_path).readLines()
-    def header = lines[0].tokenize(',')*.trim()
-    lines.drop(1).each { line ->
-        def fields = line.tokenize(',')*.trim()
-        def row = [header, fields].transpose().collectEntries()
-        if (row.sample && (row.file1 || row.bam || row.fastq1 || row.vcf)) {
-            samples << row
+def cell(row, col) {
+    return row.containsKey(col) && row[col] != null ? row[col].toString().trim() : ""
+}
+
+def populated(row, cols) {
+    return cols.findAll { col -> cell(row, col) }
+}
+
+def chooseOne(row, cols, label, row_number) {
+    def present = populated(row, cols)
+    if (!present) return ""
+
+    def values = present.collect { col -> cell(row, col) }.unique()
+    if (values.size() > 1) {
+        error "ERROR: samplesheet row ${row_number} has ambiguous ${label} columns (${present.join(', ')}). Use only one of: ${cols.join(', ')}"
+    }
+    return values[0]
+}
+
+def requireExistingFile(path_value, label, row_number) {
+    if (!path_value) {
+        error "ERROR: samplesheet row ${row_number} is missing ${label}"
+    }
+    if (!file(path_value).exists()) {
+        error "ERROR: samplesheet row ${row_number} ${label} does not exist: ${path_value}"
+    }
+    return path_value
+}
+
+def inferAlignmentIndex(alignment_path, input_type, row_number) {
+    def candidates = []
+    if (input_type == "bam") {
+        candidates = [
+            "${alignment_path}.bai",
+            alignment_path.toString().replaceFirst(/\.bam$/, ".bai")
+        ]
+    } else {
+        candidates = [
+            "${alignment_path}.crai",
+            alignment_path.toString().replaceFirst(/\.cram$/, ".crai")
+        ]
+    }
+
+    def index_path = candidates.find { candidate -> file(candidate).exists() }
+    if (!index_path) {
+        error "ERROR: samplesheet row ${row_number} ${input_type.toUpperCase()} index does not exist. Checked: ${candidates.unique().join(', ')}"
+    }
+    return index_path
+}
+
+def failIfOtherInputColumnsPopulated(row, allowed_cols, input_type, row_number) {
+    def input_cols = ["file1", "file2", "fastq1", "fastq2", "bam", "cram", "vcf", "index", "bai", "crai"]
+    def disallowed = input_cols.findAll { col -> !allowed_cols.contains(col) && cell(row, col) }
+    if (disallowed) {
+        error "ERROR: samplesheet row ${row_number} contains columns for another input type while --input_type ${input_type}: ${disallowed.join(', ')}"
+    }
+}
+
+def validateSamplesheetRows(rows, input_type, samplesheet_path) {
+    if (!rows || rows.isEmpty()) {
+        error "ERROR: samplesheet has no data rows: ${samplesheet_path}"
+    }
+
+    if (rows.any { row -> row.containsKey(null) || row.containsKey("") }) {
+        error "ERROR: samplesheet has malformed rows or blank column names: ${samplesheet_path}"
+    }
+
+    def header = rows.collectMany { row -> row.keySet() }
+        .collect { col -> col.toString().trim() }
+        .findAll { col -> col }
+        .toSet()
+    if (!header.contains("sample")) {
+        error "ERROR: samplesheet is missing required column: sample"
+    }
+
+    def required_any = [
+        fastq: ["file1", "fastq1"],
+        bam  : ["file1", "bam"],
+        cram : ["file1", "cram", "bam"],
+        vcf  : ["file1", "vcf"]
+    ][input_type]
+    if (!required_any.any { col -> header.contains(col) }) {
+        error "ERROR: samplesheet for --input_type ${input_type} must include one of these columns: ${required_any.join(', ')}"
+    }
+
+    def seen = [] as Set
+    def normalized = []
+
+    rows.eachWithIndex { row, idx ->
+        def row_number = idx + 2
+        def sample_id = cell(row, "sample")
+        if (!sample_id) {
+            error "ERROR: samplesheet row ${row_number} has an empty sample ID"
+        }
+        if (seen.contains(sample_id)) {
+            error "ERROR: samplesheet contains duplicate sample ID: ${sample_id}"
+        }
+        seen << sample_id
+
+        if (input_type == "fastq") {
+            failIfOtherInputColumnsPopulated(row, ["file1", "file2", "fastq1", "fastq2"], input_type, row_number)
+            def r1 = chooseOne(row, ["file1", "fastq1"], "FASTQ R1", row_number)
+            def r2 = chooseOne(row, ["file2", "fastq2"], "FASTQ R2", row_number)
+            requireExistingFile(r1, "FASTQ R1", row_number)
+            if (r2) requireExistingFile(r2, "FASTQ R2", row_number)
+            normalized << [sample: sample_id, file1: r1, file2: r2]
+        } else if (input_type in ["bam", "cram"]) {
+            def alignment_cols = input_type == "bam" ? ["file1", "bam"] : ["file1", "cram", "bam"]
+            def index_cols = ["file2", "index", "bai", "crai"]
+            failIfOtherInputColumnsPopulated(row, (alignment_cols + index_cols), input_type, row_number)
+            def alignment = chooseOne(row, alignment_cols, "${input_type.toUpperCase()} input", row_number)
+            requireExistingFile(alignment, "${input_type.toUpperCase()} input", row_number)
+            def explicit_index = chooseOne(row, index_cols, "${input_type.toUpperCase()} index", row_number)
+            def index_path = explicit_index ? requireExistingFile(explicit_index, "${input_type.toUpperCase()} index", row_number) : inferAlignmentIndex(alignment, input_type, row_number)
+            normalized << [sample: sample_id, file1: alignment, file2: index_path]
+        } else {
+            failIfOtherInputColumnsPopulated(row, ["file1", "vcf"], input_type, row_number)
+            def vcf = chooseOne(row, ["file1", "vcf"], "VCF input", row_number)
+            requireExistingFile(vcf, "VCF input", row_number)
+            normalized << [sample: sample_id, file1: vcf]
         }
     }
-    return samples
+
+    return normalized
 }
 
 workflow {
@@ -82,11 +203,18 @@ workflow {
     def chrom_list = parseChroms(params.chroms)
     def scope = effectiveScope(params.chroms, params.sample_qc_scope)
 
+    ch_samples = Channel
+        .fromPath(params.samplesheet, checkIfExists: true)
+        .splitCsv(header: true, strip: true)
+        .filter { row -> row.values().any { value -> value != null && value.toString().trim() } }
+        .collect()
+        .map { rows -> validateSamplesheetRows(rows, params.input_type, params.samplesheet) }
+
     CHECK_VERSIONS()
 
     log.info """
     ================================================================
-    WGS / WES QC Pipeline
+    Sequencing QC entry points
     ================================================================
     Mode              : ${params.mode.toUpperCase()}
     Input type        : ${params.input_type}
@@ -97,8 +225,8 @@ workflow {
     Chromosomes       : ${params.chroms}
     ----------------------------------------------------------------
     Phase switches
-      Variant-level QC    : ${params.run_variant_qc}
-      Sample-level QC     : ${params.run_sample_qc}
+      VCF-level QC        : ${params.run_variant_qc}
+      Input-specific QC   : ${params.run_sample_qc}
       Sample QC scope     : ${scope}${scope == 'provisional' ? '  *** PROVISIONAL - not all autosomes ***' : ''}
     ----------------------------------------------------------------
     Variant-level modules
@@ -122,32 +250,29 @@ workflow {
     ch_intervals = params.target_intervals ? Channel.value(file(params.target_intervals)) : Channel.value([])
     ch_ref_panel = params.reference_panel ? Channel.value(params.reference_panel) : Channel.value([])
 
-    def samples = parseSamplesheet(params.samplesheet)
     ch_bam = Channel.empty()
     ch_fastq = Channel.empty()
     ch_vcf = Channel.empty()
     ch_input_check = Channel.empty()
 
     if (params.input_type in ["bam","cram"]) {
-        ch_bam = Channel.fromList(samples).map { row ->
+        ch_bam = ch_samples.flatMap { rows -> rows }.map { row ->
             def meta = [id: row.sample, input_type: params.input_type, mode: params.mode]
-            def bam = file(row.file1 ?: row.bam)
-            def bai = file("${bam}.bai").exists() ? file("${bam}.bai") : file("${bam.toString().replaceAll('\\.bam$','.bai')}")
-            [meta, bam, bai]
+            [meta, file(row.file1), file(row.file2)]
         }
         ch_input_check = ch_bam
     } else if (params.input_type == "fastq") {
-        ch_fastq = Channel.fromList(samples).map { row ->
+        ch_fastq = ch_samples.flatMap { rows -> rows }.map { row ->
             def meta = [id: row.sample, input_type: params.input_type, mode: params.mode]
-            def r1 = file(row.file1 ?: row.fastq1)
-            def r2 = (row.file2 ?: row.fastq2) ? file(row.file2 ?: row.fastq2) : []
+            def r1 = file(row.file1)
+            def r2 = row.file2 ? file(row.file2) : []
             [meta, r1, r2]
         }
         ch_input_check = ch_fastq
     } else {
-        ch_vcf = Channel.fromList(samples).map { row ->
+        ch_vcf = ch_samples.flatMap { rows -> rows }.map { row ->
             def meta = [id: row.sample, input_type: params.input_type, mode: params.mode]
-            [meta, file(row.file1 ?: row.vcf)]
+            [meta, file(row.file1)]
         }
         ch_input_check = ch_vcf.map { meta, vcf -> [meta, vcf, []] }
     }
@@ -266,83 +391,4 @@ workflow {
     if (params.run_final_report) {
         FINAL_REPORT(ch_qc_summaries.collect())
     }
-}
-
-process SELECT_CHROMOSOME {
-    label 'process_low'
-    publishDir "${params.outdir}/variant_qc/chromosomes", mode: params.publish_dir_mode
-
-    input:
-    tuple val(meta), path(vcf), val(chrom)
-
-    output:
-    tuple val(meta), val(chrom), path("${meta.id}.chr${chrom}.vcf.gz"), emit: vcf
-
-    script:
-    """
-    if [[ "${vcf}" == *.vcf.gz ]]; then
-        cp ${vcf} input.vcf.gz
-    else
-        bgzip -c ${vcf} > input.vcf.gz
-    fi
-    bcftools index --tbi --force --threads ${task.cpus} input.vcf.gz
-
-    region1="${chrom}"
-    region2="chr${chrom}"
-
-    if bcftools view --regions "\${region1}" --no-header input.vcf.gz | head -n 1 | grep -q .; then
-        region="\${region1}"
-    else
-        region="\${region2}"
-    fi
-
-    bcftools view --threads ${task.cpus} --regions "\${region}" input.vcf.gz -O z -o ${meta.id}.chr${chrom}.vcf.gz
-    bcftools index --tbi --threads ${task.cpus} ${meta.id}.chr${chrom}.vcf.gz
-    """
-}
-
-process INDEX_CHROM_VCF {
-    label 'process_low'
-
-    input:
-    tuple val(meta), path(vcf)
-
-    output:
-    tuple val(meta), path("${meta.id}.indexed.vcf.gz"), path("${meta.id}.indexed.vcf.gz.tbi"), emit: vcf
-    path "index_chrom_vcf_summary.txt", emit: summary
-
-    script:
-    """
-    bcftools view --threads ${task.cpus} ${vcf} -O z -o ${meta.id}.indexed.vcf.gz
-    bcftools index --tbi --threads ${task.cpus} ${meta.id}.indexed.vcf.gz
-
-    cat > index_chrom_vcf_summary.txt << EOF
-step=index_chrom_vcf
-dataset=${meta.id}
-n_variants=\$(bcftools view --no-header ${meta.id}.indexed.vcf.gz | wc -l)
-EOF
-    """
-}
-
-process INDEX_INPUT_VCF {
-    label 'process_low'
-
-    input:
-    tuple val(meta), path(vcf)
-
-    output:
-    tuple val(meta), path("${meta.id}.indexed.vcf.gz"), path("${meta.id}.indexed.vcf.gz.tbi"), emit: vcf
-    path "index_input_vcf_summary.txt", emit: summary
-
-    script:
-    """
-    bcftools view --threads ${task.cpus} ${vcf} -O z -o ${meta.id}.indexed.vcf.gz
-    bcftools index --tbi --threads ${task.cpus} ${meta.id}.indexed.vcf.gz
-
-    cat > index_input_vcf_summary.txt << EOF
-step=index_input_vcf
-dataset=${meta.id}
-n_variants=\$(bcftools view --no-header ${meta.id}.indexed.vcf.gz | wc -l)
-EOF
-    """
 }

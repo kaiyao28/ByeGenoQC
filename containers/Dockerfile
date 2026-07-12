@@ -1,36 +1,36 @@
 # =============================================================================
-#  Genetic QC Pipeline — Docker image
+#  ByeGenoQC — Docker image
 # =============================================================================
 #  Contains every tool required by both the SNP array and WGS/WES QC pipelines.
 #  Build:
-#    docker build -t genetic-qc:1.1 -f containers/Dockerfile .
+#    docker build -t byegenoqc:local -f containers/Dockerfile .
 #
 #  Test:
-#    docker run --rm genetic-qc:1.1 plink    --version
-#    docker run --rm genetic-qc:1.1 plink2   --version
-#    docker run --rm genetic-qc:1.1 samtools  --version
-#    docker run --rm genetic-qc:1.1 bcftools  --version
-#    docker run --rm genetic-qc:1.1 gatk      --version
-#    docker run --rm genetic-qc:1.1 picard    --version
-#    docker run --rm genetic-qc:1.1 fastqc    --version
-#    docker run --rm genetic-qc:1.1 mosdepth  --version
-#    docker run --rm genetic-qc:1.1 python3   --version
-#    docker run --rm genetic-qc:1.1 Rscript   --version
-#    docker run --rm genetic-qc:1.1 pdflatex  --version
+#    docker run --rm byegenoqc:local plink    --version
+#    docker run --rm byegenoqc:local plink2   --version
+#    docker run --rm byegenoqc:local samtools  --version
+#    docker run --rm byegenoqc:local bcftools  --version
+#    docker run --rm byegenoqc:local gatk      --version
+#    docker run --rm byegenoqc:local picard    --version
+#    docker run --rm byegenoqc:local fastqc    --version
+#    docker run --rm byegenoqc:local mosdepth  --version
+#    docker run --rm byegenoqc:local python3   --version
+#    docker run --rm byegenoqc:local Rscript   --version
+#    docker run --rm byegenoqc:local pdflatex  --version
 #
 #  Push to registry (optional):
-#    docker tag genetic-qc:1.1 ghcr.io/kaiyao28/genetic-qc:1.1
-#    docker push ghcr.io/kaiyao28/genetic-qc:1.1
+#    docker tag byegenoqc:local ghcr.io/kaiyao28/byegenoqc:1.1.0
+#    docker push ghcr.io/kaiyao28/byegenoqc:1.1.0
 #
 #  Convert to Singularity SIF for HPC:
-#    apptainer build genetic-qc.sif docker://ghcr.io/kaiyao28/genetic-qc:1.1
+#    apptainer build byegenoqc.sif docker://ghcr.io/kaiyao28/byegenoqc:1.1.0
 # =============================================================================
 
 FROM condaforge/mambaforge:23.11.0-0
 
-LABEL maintainer="genetic_qc_pipeline" \
+LABEL maintainer="byegenoqc" \
       description="All tools for SNP array and WGS/WES genetic QC" \
-      version="1.1"
+      version="1.1.0"
 
 # Prevent interactive prompts during package install
 ARG DEBIAN_FRONTEND=noninteractive

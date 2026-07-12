@@ -12,8 +12,8 @@
 set -euo pipefail
 
 MODE="${1:-conda}"
-IMAGE="genetic-qc:1.0"
-SIF="containers/genetic-qc.sif"
+IMAGE="byegenoqc:local"
+SIF="containers/byegenoqc.sif"
 ENV_FILE="containers/environment.yml"
 DOCKERFILE="containers/Dockerfile"
 
@@ -24,7 +24,7 @@ warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
 err()  { echo -e "${RED}[ERR]${NC} $*"; exit 1; }
 
 echo ""
-echo "=== Genetic QC Pipeline — Setup (mode: ${MODE}) ==="
+echo "=== ByeGenoQC setup (mode: ${MODE}) ==="
 echo ""
 
 # ── Check Nextflow ─────────────────────────────────────────────────────────────
